@@ -1,0 +1,25 @@
+[package]
+name = "confidential-ml-pipeline"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+confidential-ml-transport = { path = "../confidential-ml-transport", default-features = false }
+bytes = "1.5"
+tokio = { version = "1.38", features = ["net", "io-util", "sync", "macros", "rt", "time"] }
+thiserror = "2"
+tracing = "0.1"
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+hex = "0.4"
+
+[features]
+default = ["mock", "tcp"]
+mock = ["confidential-ml-transport/mock"]
+tcp = ["confidential-ml-transport/tcp"]
+vsock = ["confidential-ml-transport/vsock"]
+nitro = ["confidential-ml-transport/nitro"]
+
+[dev-dependencies]
+tokio = { version = "1.38", features = ["full", "test-util"] }

@@ -1,0 +1,15 @@
+[package]
+name = "mock-pipeline"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "mock-pipeline"
+path = "src/main.rs"
+
+[dependencies]
+confidential-ml-pipeline = { path = "../.." }
+confidential-ml-transport = { path = "../../../confidential-ml-transport" }
+async-trait = "0.1"
+bytes = "1.5"
+tokio = { version = "1.38", features = ["full"] }
