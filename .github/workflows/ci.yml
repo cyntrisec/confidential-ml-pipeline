@@ -15,6 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: cyntrisec/confidential-ml-transport
+          path: ../confidential-ml-transport
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Run tests
@@ -25,6 +29,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: cyntrisec/confidential-ml-transport
+          path: ../confidential-ml-transport
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
