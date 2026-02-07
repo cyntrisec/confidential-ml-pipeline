@@ -11,6 +11,8 @@ Multi-enclave pipeline orchestration for confidential ML inference.
 - **Pipeline parallelism** -- 1F1B (one forward, one backward) fill-drain scheduling with configurable micro-batching to minimize pipeline bubbles
 - **Shard manifest** -- JSON-based model sharding specification with layer ranges, weight hashes, and expected attestation measurements per stage
 - **Two-phase APIs** -- `StageRuntime` and `Orchestrator` expose split control/data phases for TCP deployment where connections arrive at different times
+- **Configurable timeouts** -- per-operation timeouts for health checks (default 10s) and inference requests (default 60s), surfaced as `PipelineError::Timeout`
+- **Retry policy** -- TCP connection retries use the transport crate's `RetryPolicy` with exponential backoff and jitter, configurable on both `OrchestratorConfig` and `StageConfig`
 - **TCP deployment helpers** -- `tcp` module with retry-connect, listener binding, and full stage/orchestrator lifecycle over real TCP
 - **Pluggable transports** -- TCP and VSock backends via feature flags, with `tokio::io::duplex` for in-process testing
 - **Pluggable attestation** -- trait-based attestation, mock for development, Nitro for production
@@ -127,8 +129,11 @@ cargo run --bin pipeline-orch --manifest-path examples/tcp-pipeline/Cargo.toml -
 ## Testing
 
 ```bash
-# All tests (41 total: 23 unit + 15 integration + 3 TCP)
+# All tests (47 total: 23 unit + 18 integration + 3 TCP + 4 stress)
 cargo test
+
+# Stress tests only (100 sequential requests, 1.5 MiB tensors, 16 micro-batches, 3-stage multi-request)
+cargo test --test stress_test
 
 # TCP integration tests only
 cargo test --test tcp_pipeline
@@ -136,6 +141,22 @@ cargo test --test tcp_pipeline
 # With logging
 RUST_LOG=debug cargo test --test tcp_pipeline -- --nocapture
 ```
+
+## Benchmarks
+
+```bash
+cargo bench --bench pipeline_bench
+```
+
+| Benchmark | Result |
+|-----------|--------|
+| Pipeline throughput (2-stage, 128KB tensor) | 923 µs, 135 MiB/s |
+| Latency per stage (1KB tensor) | ~43 µs/stage |
+| Schedule generation (4 stages, 16 micro-batches) | 4.0 µs |
+| Relay forwarding (128KB) | 57 µs, 2.1 GiB/s |
+| Protocol serde (StartRequest roundtrip) | 205 ns serialize, 419 ns deserialize |
+| Health check (2 stages) | 39 µs |
+| Multi micro-batch (2-stage, 16 micro-batches) | 598 µs |
 
 ## License
 
