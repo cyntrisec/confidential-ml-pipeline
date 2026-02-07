@@ -13,6 +13,15 @@ use crate::protocol::{OrchestratorMsg, StageMsg};
 use crate::relay::RelayHandle;
 use crate::stage::ERROR_SENTINEL;
 
+/// How long to wait for each stage to finish during drain after an infer timeout.
+const STAGE_DRAIN_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Overall bound on draining data_out after stages have finished.
+const DATA_DRAIN_TIMEOUT: Duration = Duration::from_secs(2);
+
+/// If no data arrives for this long on data_out, consider it drained.
+const DATA_QUIET_PERIOD: Duration = Duration::from_millis(200);
+
 /// Configuration for the orchestrator.
 pub struct OrchestratorConfig {
     pub session_config: SessionConfig,
@@ -59,6 +68,7 @@ pub struct Orchestrator<T> {
     relay_handles: Vec<RelayHandle>,
     data_in: Option<SecureChannel<T>>,
     data_out: Option<SecureChannel<T>>,
+    tainted: bool,
 }
 
 impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
@@ -71,7 +81,23 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
             relay_handles: Vec::new(),
             data_in: None,
             data_out: None,
+            tainted: false,
         })
+    }
+
+    /// Set the inference timeout (useful for tests).
+    pub fn set_infer_timeout(&mut self, timeout: Duration) {
+        self.config.infer_timeout = timeout;
+    }
+
+    /// Set the health-check timeout (useful for tests).
+    pub fn set_health_check_timeout(&mut self, timeout: Duration) {
+        self.config.health_check_timeout = timeout;
+    }
+
+    /// Returns true if the pipeline is tainted and cannot process further requests.
+    pub fn is_tainted(&self) -> bool {
+        self.tainted
     }
 
     /// Initialize the pipeline: connect control channels, verify attestation,
@@ -275,24 +301,44 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
     /// unblocks the output receiver. The orchestrator then reads the actual error
     /// from the control channel.
     ///
+    /// On timeout, attempts to drain stale protocol state from channels. If drain
+    /// fails (stages stuck), the pipeline is marked tainted and further calls
+    /// return `PipelineError::Tainted`.
+    ///
     /// Subject to `OrchestratorConfig::infer_timeout`.
     pub async fn infer(
         &mut self,
         input_tensors: Vec<Vec<OwnedTensor>>,
         seq_len: u32,
     ) -> crate::error::Result<InferenceResult> {
+        if self.tainted {
+            return Err(PipelineError::Tainted);
+        }
+
+        let request_id = rand_request_id();
         let timeout = self.config.infer_timeout;
-        tokio::time::timeout(timeout, self.infer_inner(input_tensors, seq_len))
-            .await
-            .map_err(|_| PipelineError::Timeout("inference timed out".into()))?
+
+        match tokio::time::timeout(
+            timeout,
+            self.infer_inner(request_id, input_tensors, seq_len),
+        )
+        .await
+        {
+            Ok(result) => result,
+            Err(_) => {
+                warn!(request_id, "orchestrator: inference timed out, draining");
+                self.drain_timed_out_infer(request_id).await;
+                Err(PipelineError::Timeout("inference timed out".into()))
+            }
+        }
     }
 
     async fn infer_inner(
         &mut self,
+        request_id: u64,
         input_tensors: Vec<Vec<OwnedTensor>>,
         seq_len: u32,
     ) -> crate::error::Result<InferenceResult> {
-        let request_id = rand_request_id();
         let num_micro_batches = input_tensors.len() as u32;
 
         if num_micro_batches == 0 {
@@ -351,8 +397,9 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
         match output_result {
             Ok(outputs) => {
                 // Success: collect RequestDone confirmations from all stages.
+                // Tolerant: skip stale Pongs and wrong-request-id messages.
                 for stage in &mut self.stages {
-                    let msg = recv_stage_msg(&mut stage.control).await?;
+                    let msg = recv_stage_msg_tolerant(&mut stage.control, Some(request_id)).await?;
                     match msg {
                         StageMsg::RequestDone { request_id: rid } if rid == request_id => {
                             debug!(stage = stage.stage_idx, "orchestrator: stage done");
@@ -380,8 +427,9 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
             }
             Err(PipelineError::StageFailed { .. }) => {
                 // A stage sent an error sentinel. Read control channels for details.
+                // Tolerant: skip stale Pongs and wrong-request-id messages.
                 for stage in &mut self.stages {
-                    let msg = recv_stage_msg(&mut stage.control).await?;
+                    let msg = recv_stage_msg_tolerant(&mut stage.control, Some(request_id)).await?;
                     if let StageMsg::RequestError {
                         request_id: rid,
                         error,
@@ -405,10 +453,72 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
         }
     }
 
+    /// Drain stale protocol state after an inference timeout.
+    ///
+    /// Step 1: Wait for each stage to send RequestDone/RequestError on control.
+    ///         If any stage doesn't respond within STAGE_DRAIN_TIMEOUT, mark tainted.
+    /// Step 2: Drain remaining data_out messages until quiet.
+    async fn drain_timed_out_infer(&mut self, request_id: u64) {
+        // Step 1: Drain control channels.
+        for i in 0..self.stages.len() {
+            let stage_idx = self.stages[i].stage_idx;
+            let result = tokio::time::timeout(
+                STAGE_DRAIN_TIMEOUT,
+                drain_control_until_request_complete(&mut self.stages[i].control, request_id),
+            )
+            .await;
+
+            match result {
+                Ok(Ok(())) => {
+                    debug!(stage = stage_idx, "drain: stage finished");
+                }
+                Ok(Err(e)) => {
+                    warn!(stage = stage_idx, error = %e, "drain: stage control error, tainting");
+                    self.tainted = true;
+                    return;
+                }
+                Err(_) => {
+                    warn!(stage = stage_idx, "drain: stage stuck, tainting pipeline");
+                    self.tainted = true;
+                    return;
+                }
+            }
+        }
+
+        // Step 2: Drain data_out.
+        if let Some(data_out) = self.data_out.as_mut() {
+            let _ = tokio::time::timeout(DATA_DRAIN_TIMEOUT, async {
+                loop {
+                    match tokio::time::timeout(DATA_QUIET_PERIOD, data_out.recv()).await {
+                        Ok(Ok(msg)) => {
+                            debug!(?msg, "drain: discarding stale data_out message");
+                        }
+                        Ok(Err(e)) => {
+                            warn!(error = %e, "drain: data_out recv error");
+                            break;
+                        }
+                        Err(_) => {
+                            // Quiet period elapsed — data_out is drained.
+                            debug!("drain: data_out quiet, drain complete");
+                            break;
+                        }
+                    }
+                }
+            })
+            .await;
+        }
+
+        info!(request_id, "drain: completed successfully");
+    }
+
     /// Send a health-check ping to all stages.
     ///
     /// Subject to `OrchestratorConfig::health_check_timeout`.
     pub async fn health_check(&mut self) -> crate::error::Result<()> {
+        if self.tainted {
+            return Err(PipelineError::Tainted);
+        }
+
         let timeout = self.config.health_check_timeout;
         tokio::time::timeout(timeout, self.health_check_inner())
             .await
@@ -426,17 +536,47 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
                 .map_err(PipelineError::Transport)?;
         }
 
+        // Tolerant reader: skip stale Pongs (wrong seq), stale RequestDone/RequestError.
         for stage in &mut self.stages {
-            let msg = recv_stage_msg(&mut stage.control).await?;
-            match msg {
-                StageMsg::Pong { seq: s } if s == seq => {
-                    debug!(stage = stage.stage_idx, "health check OK");
-                }
-                other => {
-                    return Err(PipelineError::StageFailed {
-                        stage_idx: stage.stage_idx,
-                        reason: format!("expected Pong, got {other:?}"),
-                    });
+            loop {
+                let msg = recv_stage_msg(&mut stage.control).await?;
+                match msg {
+                    StageMsg::Pong { seq: s } if s == seq => {
+                        debug!(stage = stage.stage_idx, "health check OK");
+                        break;
+                    }
+                    StageMsg::Pong { seq: stale_seq } => {
+                        debug!(
+                            stage = stage.stage_idx,
+                            stale_seq,
+                            expected_seq = seq,
+                            "skipping stale Pong"
+                        );
+                        continue;
+                    }
+                    StageMsg::RequestDone { request_id } => {
+                        debug!(
+                            stage = stage.stage_idx,
+                            request_id, "skipping stale RequestDone during health check"
+                        );
+                        continue;
+                    }
+                    StageMsg::RequestError {
+                        request_id,
+                        error: _,
+                    } => {
+                        debug!(
+                            stage = stage.stage_idx,
+                            request_id, "skipping stale RequestError during health check"
+                        );
+                        continue;
+                    }
+                    other => {
+                        return Err(PipelineError::StageFailed {
+                            stage_idx: stage.stage_idx,
+                            reason: format!("expected Pong, got {other:?}"),
+                        });
+                    }
                 }
             }
         }
@@ -512,6 +652,70 @@ async fn recv_stage_msg<T: AsyncRead + AsyncWrite + Unpin + Send>(
         other => Err(PipelineError::Protocol(format!(
             "expected Data on control channel, got {other:?}"
         ))),
+    }
+}
+
+/// Receive a stage message, skipping stale Pongs and RequestDone/RequestError
+/// for other request IDs. Returns the first message matching `expected_request_id`
+/// (if Some) or any non-stale message.
+async fn recv_stage_msg_tolerant<T: AsyncRead + AsyncWrite + Unpin + Send>(
+    channel: &mut SecureChannel<T>,
+    expected_request_id: Option<u64>,
+) -> crate::error::Result<StageMsg> {
+    loop {
+        let msg = recv_stage_msg(channel).await?;
+        match &msg {
+            // Skip stale Pongs from previous health checks.
+            StageMsg::Pong { seq } => {
+                debug!(seq, "tolerant reader: skipping stale Pong");
+                continue;
+            }
+            // Skip RequestDone/RequestError for other request IDs.
+            StageMsg::RequestDone { request_id } if expected_request_id.is_some() => {
+                if *request_id != expected_request_id.unwrap() {
+                    debug!(request_id, "tolerant reader: skipping stale RequestDone");
+                    continue;
+                }
+                return Ok(msg);
+            }
+            StageMsg::RequestError { request_id, .. } if expected_request_id.is_some() => {
+                if *request_id != expected_request_id.unwrap() {
+                    debug!(request_id, "tolerant reader: skipping stale RequestError");
+                    continue;
+                }
+                return Ok(msg);
+            }
+            _ => return Ok(msg),
+        }
+    }
+}
+
+/// Read from a control channel until we see RequestDone or RequestError for the
+/// given request_id (or any request). Skips stale Pongs and messages for other requests.
+async fn drain_control_until_request_complete<T: AsyncRead + AsyncWrite + Unpin + Send>(
+    channel: &mut SecureChannel<T>,
+    expected_request_id: u64,
+) -> crate::error::Result<()> {
+    loop {
+        let msg = recv_stage_msg(channel).await?;
+        match msg {
+            StageMsg::RequestDone { request_id } if request_id == expected_request_id => {
+                return Ok(());
+            }
+            StageMsg::RequestError { request_id, .. } if request_id == expected_request_id => {
+                return Ok(());
+            }
+            StageMsg::Pong { .. }
+            | StageMsg::RequestDone { .. }
+            | StageMsg::RequestError { .. } => {
+                debug!(?msg, "drain_control: skipping stale message");
+                continue;
+            }
+            other => {
+                warn!(?other, "drain_control: unexpected message");
+                continue;
+            }
+        }
     }
 }
 

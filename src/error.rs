@@ -78,6 +78,8 @@ pub enum PipelineError {
     Io(#[from] std::io::Error),
     #[error("timeout: {0}")]
     Timeout(String),
+    #[error("pipeline tainted after unrecoverable timeout; re-initialize to continue")]
+    Tainted,
     #[error("protocol error: {0}")]
     Protocol(String),
 }
