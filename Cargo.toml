@@ -28,3 +28,8 @@ nitro = ["confidential-ml-transport/nitro"]
 
 [dev-dependencies]
 tokio = { version = "1.38", features = ["full", "test-util"] }
+criterion = { version = "0.5", features = ["async_tokio"] }
+
+[[bench]]
+name = "pipeline_bench"
+harness = false
