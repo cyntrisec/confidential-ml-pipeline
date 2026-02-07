@@ -218,10 +218,7 @@ async fn two_stage_two_micro_batches() {
         .await
         .unwrap();
 
-    let input = vec![
-        vec![make_test_tensor("mb0")],
-        vec![make_test_tensor("mb1")],
-    ];
+    let input = vec![vec![make_test_tensor("mb0")], vec![make_test_tensor("mb1")]];
     let result = orch.infer(input, 16).await.unwrap();
 
     assert_eq!(result.outputs.len(), 2);

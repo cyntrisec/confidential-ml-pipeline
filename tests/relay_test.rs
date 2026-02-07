@@ -1,6 +1,6 @@
 use bytes::Bytes;
-use confidential_ml_transport::{DType, MockProvider, MockVerifier, SecureChannel, SessionConfig};
 use confidential_ml_transport::frame::tensor::TensorRef;
+use confidential_ml_transport::{DType, MockProvider, MockVerifier, SecureChannel, SessionConfig};
 
 use confidential_ml_pipeline::start_relay_link;
 
@@ -82,7 +82,10 @@ async fn secure_channel_through_relay() {
         }
 
         // Receive shutdown.
-        let msg = channel.recv().await.expect("initiator recv shutdown failed");
+        let msg = channel
+            .recv()
+            .await
+            .expect("initiator recv shutdown failed");
         assert!(matches!(msg, confidential_ml_transport::Message::Shutdown));
     });
 

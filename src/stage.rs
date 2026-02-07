@@ -222,10 +222,10 @@ impl<E: StageExecutor> StageRuntime<E> {
             } => {
                 let stage_spec: StageSpec = serde_json::from_str(&stage_spec_json)
                     .map_err(|e| PipelineError::Protocol(format!("invalid stage_spec: {e}")))?;
-                let activation_spec: ActivationSpec =
-                    serde_json::from_str(&activation_spec_json).map_err(|e| {
-                        PipelineError::Protocol(format!("invalid activation_spec: {e}"))
-                    })?;
+                let activation_spec: ActivationSpec = serde_json::from_str(&activation_spec_json)
+                    .map_err(|e| {
+                    PipelineError::Protocol(format!("invalid activation_spec: {e}"))
+                })?;
                 Ok((stage_spec, activation_spec, num_stages))
             }
             other => Err(PipelineError::Protocol(format!(

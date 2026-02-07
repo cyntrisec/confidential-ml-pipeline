@@ -6,11 +6,11 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use confidential_ml_transport::{DType, MockProvider, MockVerifier, OwnedTensor};
 
+use confidential_ml_pipeline::tcp;
 use confidential_ml_pipeline::{
     ActivationDType, ActivationSpec, ForwardOutput, OrchestratorConfig, PortSpec, RequestId,
     ShardManifest, StageConfig, StageEndpoint, StageError, StageExecutor, StageSpec,
 };
-use confidential_ml_pipeline::tcp;
 
 /// Identity executor: passes input tensors through unchanged.
 struct IdentityExecutor;
@@ -89,14 +89,16 @@ async fn two_stage_tcp_pipeline() {
 
     // Bind listeners for both stages.
     let (s0_ctrl_lis, s0_ctrl_addr, s0_din_lis, s0_din_addr) =
-        tcp::bind_stage_listeners(localhost, localhost).await.unwrap();
+        tcp::bind_stage_listeners(localhost, localhost)
+            .await
+            .unwrap();
     let (s1_ctrl_lis, s1_ctrl_addr, s1_din_lis, s1_din_addr) =
-        tcp::bind_stage_listeners(localhost, localhost).await.unwrap();
+        tcp::bind_stage_listeners(localhost, localhost)
+            .await
+            .unwrap();
 
-    let manifest = make_manifest_with_addrs(&[
-        (s0_ctrl_addr, s0_din_addr),
-        (s1_ctrl_addr, s1_din_addr),
-    ]);
+    let manifest =
+        make_manifest_with_addrs(&[(s0_ctrl_addr, s0_din_addr), (s1_ctrl_addr, s1_din_addr)]);
 
     // Bind orchestrator data_out listener.
     let orch_dout_lis = tokio::net::TcpListener::bind(localhost).await.unwrap();
@@ -176,7 +178,9 @@ async fn single_stage_tcp_pipeline() {
     let localhost: SocketAddr = "127.0.0.1:0".parse().unwrap();
 
     let (s0_ctrl_lis, s0_ctrl_addr, s0_din_lis, s0_din_addr) =
-        tcp::bind_stage_listeners(localhost, localhost).await.unwrap();
+        tcp::bind_stage_listeners(localhost, localhost)
+            .await
+            .unwrap();
 
     let manifest = make_manifest_with_addrs(&[(s0_ctrl_addr, s0_din_addr)]);
 
@@ -231,11 +235,17 @@ async fn three_stage_tcp_pipeline() {
     let localhost: SocketAddr = "127.0.0.1:0".parse().unwrap();
 
     let (s0_ctrl_lis, s0_ctrl_addr, s0_din_lis, s0_din_addr) =
-        tcp::bind_stage_listeners(localhost, localhost).await.unwrap();
+        tcp::bind_stage_listeners(localhost, localhost)
+            .await
+            .unwrap();
     let (s1_ctrl_lis, s1_ctrl_addr, s1_din_lis, s1_din_addr) =
-        tcp::bind_stage_listeners(localhost, localhost).await.unwrap();
+        tcp::bind_stage_listeners(localhost, localhost)
+            .await
+            .unwrap();
     let (s2_ctrl_lis, s2_ctrl_addr, s2_din_lis, s2_din_addr) =
-        tcp::bind_stage_listeners(localhost, localhost).await.unwrap();
+        tcp::bind_stage_listeners(localhost, localhost)
+            .await
+            .unwrap();
 
     let manifest = make_manifest_with_addrs(&[
         (s0_ctrl_addr, s0_din_addr),
@@ -315,10 +325,7 @@ async fn three_stage_tcp_pipeline() {
     orch.health_check().await.expect("health check failed");
 
     // 2 micro-batches through 3 stages.
-    let input = vec![
-        vec![make_test_tensor("mb0")],
-        vec![make_test_tensor("mb1")],
-    ];
+    let input = vec![vec![make_test_tensor("mb0")], vec![make_test_tensor("mb1")]];
     let result = orch.infer(input, 16).await.expect("inference failed");
 
     assert_eq!(result.outputs.len(), 2);

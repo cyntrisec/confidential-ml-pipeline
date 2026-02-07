@@ -77,21 +77,21 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
             let mut session_config = self.config.session_config.clone();
 
             if !self.manifest.stages[i].expected_measurements.is_empty() {
-                let measurements = self.manifest.stages[i]
-                    .to_expected_measurements()
-                    .map_err(|e| {
-                        PipelineError::Protocol(format!("invalid measurements for stage {i}: {e}"))
-                    })?;
+                let measurements =
+                    self.manifest.stages[i]
+                        .to_expected_measurements()
+                        .map_err(|e| {
+                            PipelineError::Protocol(format!(
+                                "invalid measurements for stage {i}: {e}"
+                            ))
+                        })?;
                 session_config.expected_measurements = Some(measurements);
             }
 
-            let channel = SecureChannel::connect_with_attestation(
-                transport,
-                verifier,
-                session_config,
-            )
-            .await
-            .map_err(PipelineError::Transport)?;
+            let channel =
+                SecureChannel::connect_with_attestation(transport, verifier, session_config)
+                    .await
+                    .map_err(PipelineError::Transport)?;
 
             info!(stage = i, "orchestrator: control channel established");
             self.stages.push(StageHandle {
@@ -157,8 +157,14 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
         provider: &dyn confidential_ml_transport::AttestationProvider,
     ) -> crate::error::Result<()> {
         self.send_establish_data_channels().await?;
-        self.complete_data_channels(data_in_transport, data_out_transport, relay_handles, verifier, provider)
-            .await
+        self.complete_data_channels(
+            data_in_transport,
+            data_out_transport,
+            relay_handles,
+            verifier,
+            provider,
+        )
+        .await
     }
 
     /// Send EstablishDataChannels to all stages.
@@ -287,7 +293,10 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
                 .map_err(PipelineError::Transport)?;
         }
 
-        debug!(request_id, num_micro_batches, "orchestrator: sending input tensors");
+        debug!(
+            request_id,
+            num_micro_batches, "orchestrator: sending input tensors"
+        );
 
         // Send input tensors to stage 0.
         for mb_tensors in &input_tensors {
@@ -314,9 +323,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
                 for stage in &mut self.stages {
                     let msg = recv_stage_msg(&mut stage.control).await?;
                     match msg {
-                        StageMsg::RequestDone { request_id: rid }
-                            if rid == request_id =>
-                        {
+                        StageMsg::RequestDone { request_id: rid } if rid == request_id => {
                             debug!(stage = stage.stage_idx, "orchestrator: stage done");
                         }
                         StageMsg::RequestError {

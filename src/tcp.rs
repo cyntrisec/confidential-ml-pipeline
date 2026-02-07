@@ -9,8 +9,8 @@ use confidential_ml_transport::{AttestationProvider, AttestationVerifier};
 use crate::error::PipelineError;
 use crate::executor::StageExecutor;
 use crate::manifest::PortSpec;
-use crate::orchestrator::{Orchestrator, OrchestratorConfig};
 use crate::manifest::ShardManifest;
+use crate::orchestrator::{Orchestrator, OrchestratorConfig};
 use crate::stage::{StageConfig, StageRuntime};
 
 /// Resolve a [`PortSpec`] to a [`SocketAddr`].

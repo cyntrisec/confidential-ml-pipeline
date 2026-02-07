@@ -278,10 +278,7 @@ mod tests {
             layer_start: 0,
             layer_end: 4,
             weight_hashes: vec![],
-            expected_measurements: BTreeMap::from([
-                (0, "abcd1234".into()),
-                (1, "deadbeef".into()),
-            ]),
+            expected_measurements: BTreeMap::from([(0, "abcd1234".into()), (1, "deadbeef".into())]),
             endpoint: make_endpoint(9000),
         };
         let em = stage.to_expected_measurements().unwrap();
@@ -291,7 +288,10 @@ mod tests {
 
     #[test]
     fn vsock_port_spec_serde() {
-        let spec = PortSpec::VSock { cid: 16, port: 5000 };
+        let spec = PortSpec::VSock {
+            cid: 16,
+            port: 5000,
+        };
         let json = serde_json::to_string(&spec).unwrap();
         assert!(json.contains("vsock"));
         let parsed: PortSpec = serde_json::from_str(&json).unwrap();
