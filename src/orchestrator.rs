@@ -13,15 +13,6 @@ use crate::protocol::{OrchestratorMsg, StageMsg};
 use crate::relay::RelayHandle;
 use crate::stage::ERROR_SENTINEL;
 
-/// How long to wait for each stage to finish during drain after an infer timeout.
-const STAGE_DRAIN_TIMEOUT: Duration = Duration::from_secs(5);
-
-/// Overall bound on draining data_out after stages have finished.
-const DATA_DRAIN_TIMEOUT: Duration = Duration::from_secs(2);
-
-/// If no data arrives for this long on data_out, consider it drained.
-const DATA_QUIET_PERIOD: Duration = Duration::from_millis(200);
-
 /// Configuration for the orchestrator.
 pub struct OrchestratorConfig {
     pub session_config: SessionConfig,
@@ -31,6 +22,12 @@ pub struct OrchestratorConfig {
     pub infer_timeout: Duration,
     /// Retry policy for TCP connections (used by TCP helpers).
     pub tcp_retry_policy: confidential_ml_transport::RetryPolicy,
+    /// How long to wait per stage for RequestDone/RequestError during drain (default: 5s).
+    pub stage_drain_timeout: Duration,
+    /// Overall bound on draining data_out after stages have finished (default: 2s).
+    pub data_drain_timeout: Duration,
+    /// If no data arrives for this long on data_out, consider it drained (default: 200ms).
+    pub data_quiet_period: Duration,
 }
 
 impl Default for OrchestratorConfig {
@@ -40,6 +37,9 @@ impl Default for OrchestratorConfig {
             health_check_timeout: Duration::from_secs(10),
             infer_timeout: Duration::from_secs(60),
             tcp_retry_policy: confidential_ml_transport::RetryPolicy::default(),
+            stage_drain_timeout: Duration::from_secs(5),
+            data_drain_timeout: Duration::from_secs(2),
+            data_quiet_period: Duration::from_millis(200),
         }
     }
 }
@@ -456,14 +456,19 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
     /// Drain stale protocol state after an inference timeout.
     ///
     /// Step 1: Wait for each stage to send RequestDone/RequestError on control.
-    ///         If any stage doesn't respond within STAGE_DRAIN_TIMEOUT, mark tainted.
+    ///         If any stage doesn't respond within `stage_drain_timeout`, mark tainted.
     /// Step 2: Drain remaining data_out messages until quiet.
+    ///         If data_out still has pending frames after `data_drain_timeout`, mark tainted.
     async fn drain_timed_out_infer(&mut self, request_id: u64) {
+        let stage_drain_timeout = self.config.stage_drain_timeout;
+        let data_drain_timeout = self.config.data_drain_timeout;
+        let data_quiet_period = self.config.data_quiet_period;
+
         // Step 1: Drain control channels.
         for i in 0..self.stages.len() {
             let stage_idx = self.stages[i].stage_idx;
             let result = tokio::time::timeout(
-                STAGE_DRAIN_TIMEOUT,
+                stage_drain_timeout,
                 drain_control_until_request_complete(&mut self.stages[i].control, request_id),
             )
             .await;
@@ -487,9 +492,9 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
 
         // Step 2: Drain data_out.
         if let Some(data_out) = self.data_out.as_mut() {
-            let _ = tokio::time::timeout(DATA_DRAIN_TIMEOUT, async {
+            let drain_result = tokio::time::timeout(data_drain_timeout, async {
                 loop {
-                    match tokio::time::timeout(DATA_QUIET_PERIOD, data_out.recv()).await {
+                    match tokio::time::timeout(data_quiet_period, data_out.recv()).await {
                         Ok(Ok(msg)) => {
                             debug!(?msg, "drain: discarding stale data_out message");
                         }
@@ -506,6 +511,15 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
                 }
             })
             .await;
+
+            if drain_result.is_err() {
+                warn!(
+                    ?data_drain_timeout,
+                    "drain: data_out still has pending frames, tainting pipeline"
+                );
+                self.tainted = true;
+                return;
+            }
         }
 
         info!(request_id, "drain: completed successfully");

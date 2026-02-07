@@ -83,6 +83,18 @@ async fn setup_slow_pipeline(
     tokio::task::JoinHandle<()>,
     tokio::task::JoinHandle<()>,
 ) {
+    setup_slow_pipeline_with_config(delay, OrchestratorConfig::default()).await
+}
+
+/// Set up a 2-stage pipeline with custom config and executor delay.
+async fn setup_slow_pipeline_with_config(
+    delay: Duration,
+    config: OrchestratorConfig,
+) -> (
+    Orchestrator<tokio::io::DuplexStream>,
+    tokio::task::JoinHandle<()>,
+    tokio::task::JoinHandle<()>,
+) {
     let manifest = make_test_manifest(2);
     let verifier = MockVerifier::new();
     let provider = MockProvider::new();
@@ -125,7 +137,7 @@ async fn setup_slow_pipeline(
             .await;
     });
 
-    let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
+    let mut orch = Orchestrator::new(config, manifest).unwrap();
     orch.init(vec![orch_ctrl0, orch_ctrl1], &verifier)
         .await
         .unwrap();
@@ -259,4 +271,59 @@ async fn health_check_after_infer_timeout() {
     orch.shutdown().await.unwrap();
     s0.await.unwrap();
     s1.await.unwrap();
+}
+
+/// Test 4: Data-out drain timeout taints the pipeline.
+///
+/// Stages complete quickly (control drain succeeds), but data_quiet_period is
+/// set very long (5s) so the drain blocks waiting for more data after reading
+/// the buffered output. The short data_drain_timeout (10ms) fires during this
+/// wait, triggering the taint path.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn data_out_drain_timeout_taints_pipeline() {
+    let config = OrchestratorConfig {
+        infer_timeout: Duration::from_millis(50),
+        // Stages finish within this window.
+        stage_drain_timeout: Duration::from_secs(5),
+        // Long quiet period: drain blocks after reading buffered output.
+        data_quiet_period: Duration::from_secs(5),
+        // Short outer bound: fires while drain is blocked in quiet-period wait.
+        data_drain_timeout: Duration::from_millis(10),
+        ..OrchestratorConfig::default()
+    };
+
+    // SlowExecutor(300ms): stages complete in ~300ms per micro-batch (within
+    // stage_drain_timeout), but after control drain succeeds, the data_out
+    // drain reads the buffered output then blocks for 5s quiet period. The
+    // 10ms data_drain_timeout fires, tainting the pipeline.
+    let (mut orch, _s0, _s1) =
+        setup_slow_pipeline_with_config(Duration::from_millis(300), config).await;
+
+    let input = vec![vec![make_test_tensor("data_drain_req")]];
+    let result = orch.infer(input, 16).await;
+
+    assert!(
+        matches!(result, Err(PipelineError::Timeout(_))),
+        "expected Timeout, got {result:?}"
+    );
+
+    // Pipeline should be tainted because data_out drain timed out.
+    assert!(
+        orch.is_tainted(),
+        "pipeline should be tainted after data_out drain timeout"
+    );
+
+    // Further operations should be rejected.
+    let input = vec![vec![make_test_tensor("after_data_taint")]];
+    let result = orch.infer(input, 16).await;
+    assert!(
+        matches!(result, Err(PipelineError::Tainted)),
+        "expected Tainted, got {result:?}"
+    );
+
+    let hc = orch.health_check().await;
+    assert!(
+        matches!(hc, Err(PipelineError::Tainted)),
+        "expected Tainted from health_check, got {hc:?}"
+    );
 }
