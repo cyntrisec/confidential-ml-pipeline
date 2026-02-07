@@ -44,6 +44,36 @@ impl Default for OrchestratorConfig {
     }
 }
 
+impl OrchestratorConfig {
+    /// Validate configuration values.
+    pub fn validate(&self) -> crate::error::Result<()> {
+        if self.stage_drain_timeout.is_zero() {
+            return Err(PipelineError::Protocol(
+                "stage_drain_timeout must be > 0".into(),
+            ));
+        }
+        if self.data_drain_timeout.is_zero() {
+            return Err(PipelineError::Protocol(
+                "data_drain_timeout must be > 0".into(),
+            ));
+        }
+        if self.data_quiet_period.is_zero() {
+            return Err(PipelineError::Protocol(
+                "data_quiet_period must be > 0".into(),
+            ));
+        }
+        if self.infer_timeout.is_zero() {
+            return Err(PipelineError::Protocol("infer_timeout must be > 0".into()));
+        }
+        if self.health_check_timeout.is_zero() {
+            return Err(PipelineError::Protocol(
+                "health_check_timeout must be > 0".into(),
+            ));
+        }
+        Ok(())
+    }
+}
+
 /// Result of an inference request.
 #[derive(Debug)]
 pub struct InferenceResult {
@@ -74,6 +104,7 @@ pub struct Orchestrator<T> {
 impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
     pub fn new(config: OrchestratorConfig, manifest: ShardManifest) -> crate::error::Result<Self> {
         manifest.validate()?;
+        config.validate()?;
         Ok(Self {
             config,
             manifest,
@@ -491,6 +522,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
         }
 
         // Step 2: Drain data_out.
+        // Returns true if drain completed cleanly, false on recv error.
         if let Some(data_out) = self.data_out.as_mut() {
             let drain_result = tokio::time::timeout(data_drain_timeout, async {
                 loop {
@@ -500,25 +532,33 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
                         }
                         Ok(Err(e)) => {
                             warn!(error = %e, "drain: data_out recv error");
-                            break;
+                            return false;
                         }
                         Err(_) => {
                             // Quiet period elapsed — data_out is drained.
                             debug!("drain: data_out quiet, drain complete");
-                            break;
+                            return true;
                         }
                     }
                 }
             })
             .await;
 
-            if drain_result.is_err() {
-                warn!(
-                    ?data_drain_timeout,
-                    "drain: data_out still has pending frames, tainting pipeline"
-                );
-                self.tainted = true;
-                return;
+            match drain_result {
+                Ok(true) => {} // Drained cleanly.
+                Ok(false) => {
+                    warn!("drain: data_out transport error, tainting pipeline");
+                    self.tainted = true;
+                    return;
+                }
+                Err(_) => {
+                    warn!(
+                        ?data_drain_timeout,
+                        "drain: data_out still has pending frames, tainting pipeline"
+                    );
+                    self.tainted = true;
+                    return;
+                }
             }
         }
 
