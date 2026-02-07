@@ -1,10 +1,9 @@
 use std::net::SocketAddr;
-use std::time::Duration;
 
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{debug, info};
 
-use confidential_ml_transport::{AttestationProvider, AttestationVerifier};
+use confidential_ml_transport::{AttestationProvider, AttestationVerifier, RetryPolicy};
 
 use crate::error::PipelineError;
 use crate::executor::StageExecutor;
@@ -28,23 +27,23 @@ pub fn resolve_tcp(spec: &PortSpec) -> crate::error::Result<SocketAddr> {
 }
 
 /// Connect to a TCP address with retry and exponential backoff.
+///
+/// Uses the given [`RetryPolicy`] for backoff delays and attempt limits.
 pub async fn connect_tcp_retry(
     addr: SocketAddr,
-    max_retries: u32,
-    backoff: Duration,
+    policy: &RetryPolicy,
 ) -> crate::error::Result<TcpStream> {
-    let mut delay = backoff;
-    for attempt in 0..=max_retries {
+    for attempt in 0..=policy.max_retries {
         match TcpStream::connect(addr).await {
             Ok(stream) => {
                 stream.set_nodelay(true).ok();
                 debug!(addr = %addr, attempt, "TCP connected");
                 return Ok(stream);
             }
-            Err(e) if attempt < max_retries => {
+            Err(e) if attempt < policy.max_retries => {
+                let delay = policy.delay_for_attempt(attempt);
                 debug!(addr = %addr, attempt, error = %e, delay_ms = delay.as_millis(), "TCP connect retry");
                 tokio::time::sleep(delay).await;
-                delay = delay.saturating_mul(2);
             }
             Err(e) => {
                 return Err(PipelineError::Io(e));
@@ -97,6 +96,9 @@ pub async fn run_stage_with_listeners<E: StageExecutor>(
     ctrl_stream.set_nodelay(true).ok();
     info!(peer = %ctrl_peer, "stage: accepted control TCP");
 
+    // Clone retry policy before config is moved into the runtime.
+    let retry_policy = config.tcp_retry_policy.clone();
+
     // 2. Control phase.
     let mut runtime = StageRuntime::new(executor, config);
     let result = runtime.run_control_phase(ctrl_stream, provider).await?;
@@ -104,7 +106,7 @@ pub async fn run_stage_with_listeners<E: StageExecutor>(
     // 3. Concurrently accept data_in and connect data_out.
     let (din_result, dout_result) = tokio::try_join!(
         accept_tcp(&data_in_listener),
-        connect_tcp_retry(data_out_target, 10, Duration::from_millis(50)),
+        connect_tcp_retry(data_out_target, &retry_policy),
     )?;
 
     info!("stage: data transports connected");
@@ -135,11 +137,14 @@ pub async fn init_orchestrator_tcp(
 ) -> crate::error::Result<Orchestrator<TcpStream>> {
     let num_stages = manifest.stages.len();
 
+    // Clone retry policy before config is moved into the orchestrator.
+    let retry_policy = config.tcp_retry_policy.clone();
+
     // 1. Connect control channels to all stages.
     let mut ctrl_streams = Vec::with_capacity(num_stages);
     for (i, stage) in manifest.stages.iter().enumerate() {
         let addr = resolve_tcp(&stage.endpoint.control)?;
-        let stream = connect_tcp_retry(addr, 10, Duration::from_millis(50)).await?;
+        let stream = connect_tcp_retry(addr, &retry_policy).await?;
         info!(stage = i, addr = %addr, "orchestrator: control TCP connected");
         ctrl_streams.push(stream);
     }
@@ -155,7 +160,7 @@ pub async fn init_orchestrator_tcp(
     let stage0_din_addr = resolve_tcp(&orch.manifest().stages[0].endpoint.data_in)?;
 
     let (din_stream, dout_stream) = tokio::try_join!(
-        connect_tcp_retry(stage0_din_addr, 10, Duration::from_millis(50)),
+        connect_tcp_retry(stage0_din_addr, &retry_policy),
         accept_tcp(&data_out_listener),
     )?;
 

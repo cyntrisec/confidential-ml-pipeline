@@ -324,13 +324,27 @@ async fn three_stage_tcp_pipeline() {
 
     orch.health_check().await.expect("health check failed");
 
-    // 2 micro-batches through 3 stages.
+    // First inference: 2 micro-batches through 3 stages.
     let input = vec![vec![make_test_tensor("mb0")], vec![make_test_tensor("mb1")]];
     let result = orch.infer(input, 16).await.expect("inference failed");
 
     assert_eq!(result.outputs.len(), 2);
     assert_eq!(result.outputs[0][0].name, "mb0");
     assert_eq!(result.outputs[1][0].name, "mb1");
+
+    // Second inference: verify sequential requests work over TCP.
+    let input2 = vec![
+        vec![make_test_tensor("seq0")],
+        vec![make_test_tensor("seq1")],
+    ];
+    let result2 = orch
+        .infer(input2, 16)
+        .await
+        .expect("second inference failed");
+
+    assert_eq!(result2.outputs.len(), 2);
+    assert_eq!(result2.outputs[0][0].name, "seq0");
+    assert_eq!(result2.outputs[1][0].name, "seq1");
 
     orch.shutdown().await.expect("shutdown failed");
     s0_handle.await.unwrap();

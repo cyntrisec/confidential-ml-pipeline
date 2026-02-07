@@ -18,6 +18,8 @@ pub(crate) const ERROR_SENTINEL: &[u8] = b"ERR";
 #[derive(Default)]
 pub struct StageConfig {
     pub session_config: SessionConfig,
+    /// Retry policy for TCP connections (used by TCP helpers).
+    pub tcp_retry_policy: confidential_ml_transport::RetryPolicy,
 }
 
 /// Result of the control-phase handshake.

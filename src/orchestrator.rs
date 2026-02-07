@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bytes::Bytes;
 use confidential_ml_transport::{
     AttestationVerifier, Message, OwnedTensor, SecureChannel, SessionConfig,
@@ -12,9 +14,25 @@ use crate::relay::RelayHandle;
 use crate::stage::ERROR_SENTINEL;
 
 /// Configuration for the orchestrator.
-#[derive(Default)]
 pub struct OrchestratorConfig {
     pub session_config: SessionConfig,
+    /// Timeout for health-check pings (default: 10 seconds).
+    pub health_check_timeout: Duration,
+    /// Timeout for a single inference request (default: 60 seconds).
+    pub infer_timeout: Duration,
+    /// Retry policy for TCP connections (used by TCP helpers).
+    pub tcp_retry_policy: confidential_ml_transport::RetryPolicy,
+}
+
+impl Default for OrchestratorConfig {
+    fn default() -> Self {
+        Self {
+            session_config: SessionConfig::default(),
+            health_check_timeout: Duration::from_secs(10),
+            infer_timeout: Duration::from_secs(60),
+            tcp_retry_policy: confidential_ml_transport::RetryPolicy::default(),
+        }
+    }
 }
 
 /// Result of an inference request.
@@ -256,7 +274,20 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
     /// If a stage fails, it sends an error sentinel on the data channel, which
     /// unblocks the output receiver. The orchestrator then reads the actual error
     /// from the control channel.
+    ///
+    /// Subject to `OrchestratorConfig::infer_timeout`.
     pub async fn infer(
+        &mut self,
+        input_tensors: Vec<Vec<OwnedTensor>>,
+        seq_len: u32,
+    ) -> crate::error::Result<InferenceResult> {
+        let timeout = self.config.infer_timeout;
+        tokio::time::timeout(timeout, self.infer_inner(input_tensors, seq_len))
+            .await
+            .map_err(|_| PipelineError::Timeout("inference timed out".into()))?
+    }
+
+    async fn infer_inner(
         &mut self,
         input_tensors: Vec<Vec<OwnedTensor>>,
         seq_len: u32,
@@ -375,7 +406,16 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
     }
 
     /// Send a health-check ping to all stages.
+    ///
+    /// Subject to `OrchestratorConfig::health_check_timeout`.
     pub async fn health_check(&mut self) -> crate::error::Result<()> {
+        let timeout = self.config.health_check_timeout;
+        tokio::time::timeout(timeout, self.health_check_inner())
+            .await
+            .map_err(|_| PipelineError::Timeout("health check timed out".into()))?
+    }
+
+    async fn health_check_inner(&mut self) -> crate::error::Result<()> {
         let seq = rand_request_id();
 
         for stage in &mut self.stages {

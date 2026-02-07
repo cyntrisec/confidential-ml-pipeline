@@ -9,6 +9,7 @@ pub mod stage;
 #[cfg(feature = "tcp")]
 pub mod tcp;
 
+pub use confidential_ml_transport::RetryPolicy;
 pub use error::{ManifestError, PipelineError, Result, SchedulerError, StageError};
 pub use executor::{ForwardOutput, RequestId, StageExecutor};
 pub use manifest::{

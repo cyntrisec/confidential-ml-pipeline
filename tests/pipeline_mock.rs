@@ -229,3 +229,163 @@ async fn two_stage_two_micro_batches() {
     stage0_handle.await.unwrap();
     stage1_handle.await.unwrap();
 }
+
+/// 10 sequential inference requests through a 2-stage duplex pipeline.
+#[tokio::test]
+async fn sequential_inference_ten_requests() {
+    let manifest = make_test_manifest(2);
+    let verifier = MockVerifier::new();
+    let provider = MockProvider::new();
+
+    let (orch_ctrl0, stage0_ctrl) = tokio::io::duplex(65536);
+    let (orch_ctrl1, stage1_ctrl) = tokio::io::duplex(65536);
+    let (orch_data_in, stage0_data_in) = tokio::io::duplex(65536);
+    let (stage0_data_out, stage1_data_in) = tokio::io::duplex(65536);
+    let (stage1_data_out, orch_data_out) = tokio::io::duplex(65536);
+
+    let stage0_handle = tokio::spawn(async move {
+        let provider = MockProvider::new();
+        let verifier = MockVerifier::new();
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::default());
+        runtime
+            .run(
+                stage0_ctrl,
+                stage0_data_in,
+                stage0_data_out,
+                &provider,
+                &verifier,
+            )
+            .await
+            .unwrap();
+    });
+
+    let stage1_handle = tokio::spawn(async move {
+        let provider = MockProvider::new();
+        let verifier = MockVerifier::new();
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::default());
+        runtime
+            .run(
+                stage1_ctrl,
+                stage1_data_in,
+                stage1_data_out,
+                &provider,
+                &verifier,
+            )
+            .await
+            .unwrap();
+    });
+
+    let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
+    orch.init(vec![orch_ctrl0, orch_ctrl1], &verifier)
+        .await
+        .unwrap();
+    orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &verifier, &provider)
+        .await
+        .unwrap();
+
+    for i in 0..10 {
+        let name = format!("req_{i}");
+        let input = vec![vec![make_test_tensor(&name)]];
+        let result = orch
+            .infer(input, 16)
+            .await
+            .unwrap_or_else(|e| panic!("inference {i} failed: {e}"));
+
+        assert_eq!(result.outputs.len(), 1);
+        assert_eq!(result.outputs[0].len(), 1);
+        assert_eq!(result.outputs[0][0].name, name);
+        assert_eq!(result.outputs[0][0].shape, vec![1, 4]);
+    }
+
+    orch.shutdown().await.unwrap();
+    stage0_handle.await.unwrap();
+    stage1_handle.await.unwrap();
+}
+
+/// 3-stage pipeline over duplex channels with 2 micro-batches.
+#[tokio::test]
+async fn three_stage_identity_pipeline() {
+    let manifest = make_test_manifest(3);
+    let verifier = MockVerifier::new();
+    let provider = MockProvider::new();
+
+    // Control channels.
+    let (orch_ctrl0, stage0_ctrl) = tokio::io::duplex(65536);
+    let (orch_ctrl1, stage1_ctrl) = tokio::io::duplex(65536);
+    let (orch_ctrl2, stage2_ctrl) = tokio::io::duplex(65536);
+
+    // Data channels.
+    let (orch_data_in, stage0_data_in) = tokio::io::duplex(65536);
+    let (stage0_data_out, stage1_data_in) = tokio::io::duplex(65536);
+    let (stage1_data_out, stage2_data_in) = tokio::io::duplex(65536);
+    let (stage2_data_out, orch_data_out) = tokio::io::duplex(65536);
+
+    let stage0_handle = tokio::spawn(async move {
+        let provider = MockProvider::new();
+        let verifier = MockVerifier::new();
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::default());
+        runtime
+            .run(
+                stage0_ctrl,
+                stage0_data_in,
+                stage0_data_out,
+                &provider,
+                &verifier,
+            )
+            .await
+            .unwrap();
+    });
+
+    let stage1_handle = tokio::spawn(async move {
+        let provider = MockProvider::new();
+        let verifier = MockVerifier::new();
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::default());
+        runtime
+            .run(
+                stage1_ctrl,
+                stage1_data_in,
+                stage1_data_out,
+                &provider,
+                &verifier,
+            )
+            .await
+            .unwrap();
+    });
+
+    let stage2_handle = tokio::spawn(async move {
+        let provider = MockProvider::new();
+        let verifier = MockVerifier::new();
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::default());
+        runtime
+            .run(
+                stage2_ctrl,
+                stage2_data_in,
+                stage2_data_out,
+                &provider,
+                &verifier,
+            )
+            .await
+            .unwrap();
+    });
+
+    let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
+    orch.init(vec![orch_ctrl0, orch_ctrl1, orch_ctrl2], &verifier)
+        .await
+        .unwrap();
+    orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &verifier, &provider)
+        .await
+        .unwrap();
+
+    // 2 micro-batches through 3 stages.
+    let input = vec![vec![make_test_tensor("mb0")], vec![make_test_tensor("mb1")]];
+    let result = orch.infer(input, 16).await.unwrap();
+
+    assert_eq!(result.outputs.len(), 2);
+    assert_eq!(result.outputs[0][0].name, "mb0");
+    assert_eq!(result.outputs[1][0].name, "mb1");
+
+    orch.shutdown().await.unwrap();
+    stage0_handle.await.unwrap();
+    stage1_handle.await.unwrap();
+    stage2_handle.await.unwrap();
+}
