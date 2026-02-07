@@ -15,10 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: cyntrisec/confidential-ml-transport
-          path: ../confidential-ml-transport
+      - name: Clone confidential-ml-transport
+        run: git clone --depth 1 https://github.com/cyntrisec/confidential-ml-transport.git ../confidential-ml-transport
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Run tests
@@ -29,10 +27,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: cyntrisec/confidential-ml-transport
-          path: ../confidential-ml-transport
+      - name: Clone confidential-ml-transport
+        run: git clone --depth 1 https://github.com/cyntrisec/confidential-ml-transport.git ../confidential-ml-transport
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
