@@ -58,10 +58,14 @@ pub fn bind_stage_listeners_vsock(
     let ctrl_listener = VsockListener::bind(VsockAddr::new(VMADDR_CID_ANY, ctrl_port))
         .map_err(PipelineError::Io)?;
 
-    let din_listener = VsockListener::bind(VsockAddr::new(VMADDR_CID_ANY, din_port))
-        .map_err(PipelineError::Io)?;
+    let din_listener =
+        VsockListener::bind(VsockAddr::new(VMADDR_CID_ANY, din_port)).map_err(PipelineError::Io)?;
 
-    info!(ctrl_port, data_in_port = din_port, "stage VSock listeners bound");
+    info!(
+        ctrl_port,
+        data_in_port = din_port,
+        "stage VSock listeners bound"
+    );
     Ok((ctrl_listener, din_listener))
 }
 
@@ -72,6 +76,7 @@ pub fn bind_stage_listeners_vsock(
 /// 2. Run control phase (Init / Ready / EstablishDataChannels)
 /// 3. Concurrently: accept data_in VSock + connect data_out VSock
 /// 4. Run data phase (crypto handshakes + process loop)
+#[allow(clippy::too_many_arguments)]
 pub async fn run_stage_with_listeners_vsock<E: StageExecutor>(
     executor: E,
     config: StageConfig,
@@ -135,7 +140,10 @@ pub async fn init_orchestrator_vsock(
     for (i, stage) in manifest.stages.iter().enumerate() {
         let (cid, port) = resolve_vsock(&stage.endpoint.control)?;
         let stream = connect_vsock_retry(cid, port, &retry_policy).await?;
-        info!(stage = i, cid, port, "orchestrator: control VSock connected");
+        info!(
+            stage = i,
+            cid, port, "orchestrator: control VSock connected"
+        );
         ctrl_streams.push(stream);
     }
 
@@ -147,8 +155,7 @@ pub async fn init_orchestrator_vsock(
     orch.send_establish_data_channels().await?;
 
     // 4. Concurrently connect data_in + accept data_out.
-    let (stage0_cid, stage0_din_port) =
-        resolve_vsock(&orch.manifest().stages[0].endpoint.data_in)?;
+    let (stage0_cid, stage0_din_port) = resolve_vsock(&orch.manifest().stages[0].endpoint.data_in)?;
 
     let (din_stream, dout_stream) = tokio::try_join!(
         connect_vsock_retry(stage0_cid, stage0_din_port, &retry_policy),
