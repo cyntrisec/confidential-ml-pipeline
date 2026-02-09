@@ -1,7 +1,6 @@
 {
   "benchmark": "GPT-2 124M Nitro Enclave Pipeline (VSock)",
   "date": "2026-02-09",
-  "commit": "c51cbc9",
   "environment": {
     "instance_type": "m6i.2xlarge",
     "cpu": "Intel Xeon Platinum 8375C @ 2.90GHz (Ice Lake)",
@@ -9,11 +8,8 @@
     "memory_total_gb": 32,
     "region": "us-east-1",
     "os": "Amazon Linux 2023 (kernel 6.1.161)",
-    "enclave_vcpus": 2,
-    "enclave_memory_mb": 3072,
     "enclave_kernel": "4.14.256-209.484.amzn2 (Nitro Enclave kernel)",
-    "debug_mode": true,
-    "pcr0": "3b343ba7ae9664b137535525f174e62a29ff2dcab4edc0474e875d389cb87902950f5ef6f6a2e7486948d9f055ca08cd"
+    "debug_mode": true
   },
   "model": {
     "name": "GPT-2 (openai-community/gpt2)",
@@ -23,17 +19,22 @@
     "vocab_size": 50257,
     "format": "safetensors",
     "size_mb": 523,
-    "stages": 1,
     "kv_cache": true
   },
   "transport": {
-    "protocol": "VSock (host CID=3 <-> enclave CID=16/18)",
+    "protocol": "VSock (host <-> enclave, host relay for inter-stage)",
     "encryption": "ChaCha20-Poly1305 (AEAD per frame)",
     "handshake": "X25519 ECDH + HPKE key derivation",
-    "attestation": "Mock (VSock transport verified, Nitro attestation in follow-up)",
+    "attestation": "Mock (VSock transport verified)",
     "framing": "Binary tensor framing (confidential-ml-transport v0.2.0)"
   },
-  "results": {
+  "single_stage": {
+    "commit": "c51cbc9",
+    "stages": 1,
+    "layers_per_stage": 12,
+    "enclave_vcpus": 2,
+    "enclave_memory_mb": 3072,
+    "eif_size_mb": 614,
     "run_1": {
       "prompt": "The capital of France is",
       "prompt_tokens": 5,
@@ -43,28 +44,54 @@
       "generation_avg_ms": 42.1,
       "generation_p50_ms": 42.0,
       "generation_p95_ms": 42.9,
-      "generation_min_ms": 41.4,
-      "generation_max_ms": 42.9
+      "tokens_per_second": 23.8
     },
     "run_2": {
       "prompt": "Machine learning is transforming",
       "prompt_tokens": 4,
       "max_tokens": 50,
-      "output": "Machine learning is transforming the way we think about the world.\n\nThe world is changing, and we need to change it.\n\nWe need to change the way we think about the world.\n\nWe need to change the way we think about the world.",
       "ttft_ms": 84.4,
       "generation_avg_ms": 42.2,
       "generation_p50_ms": 42.1,
       "generation_p95_ms": 42.8,
-      "generation_min_ms": 41.6,
-      "generation_max_ms": 44.4
+      "tokens_per_second": 23.7
     }
   },
-  "summary": {
-    "ttft_ms": "84-92 (includes model load + first forward pass)",
-    "ms_per_token_p50": 42.0,
-    "ms_per_token_p95": 42.9,
-    "tokens_per_second": 23.8,
-    "handshake_latency_ms": "<2 (control + data channels)",
-    "total_pipeline_init_ms": "~820 (control connect + handshake + model load + data channels)"
+  "two_stage": {
+    "commit": "f0656bf",
+    "stages": 2,
+    "layers_per_stage": 6,
+    "enclave_vcpus_each": 2,
+    "enclave_memory_mb_each": 3072,
+    "eif_size_mb_each": 614,
+    "relay_port": 6001,
+    "run_1": {
+      "prompt": "The capital of France is",
+      "prompt_tokens": 5,
+      "max_tokens": 20,
+      "output": "The capital of France is the capital of the French Republic, and the capital of the French Republic is the capital of the French",
+      "ttft_ms": 96.6,
+      "generation_avg_ms": 45.5,
+      "generation_p50_ms": 45.6,
+      "generation_p95_ms": 46.2,
+      "tokens_per_second": 22.0
+    },
+    "run_2": {
+      "prompt": "Machine learning is transforming",
+      "prompt_tokens": 4,
+      "max_tokens": 50,
+      "ttft_ms": 89.3,
+      "generation_avg_ms": 45.4,
+      "generation_p50_ms": 45.4,
+      "generation_p95_ms": 46.8,
+      "tokens_per_second": 22.0
+    }
+  },
+  "relay_overhead": {
+    "ttft_delta_ms": 4.9,
+    "generation_p50_delta_ms": 3.5,
+    "generation_p95_delta_ms": 3.6,
+    "throughput_delta_percent": -7.6,
+    "note": "Overhead from two additional VSock hops (stage0->host->stage1) plus inter-stage SecureChannel handshake"
   }
 }

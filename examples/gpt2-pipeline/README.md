@@ -107,16 +107,17 @@ Run `bash scripts/bench.sh` to reproduce.
 
 ## Nitro Enclave Deployment
 
-### Benchmarks (m6i.2xlarge, 2-vCPU enclave)
+### Benchmarks (m6i.2xlarge, 2-vCPU enclaves)
 
-Greedy decoding, KV-cache enabled, single-stage (12 layers), encrypted VSock transport (ChaCha20-Poly1305):
+Greedy decoding, KV-cache enabled, encrypted VSock transport (ChaCha20-Poly1305):
 
-| Metric | 20 tokens | 50 tokens |
-|--------|-----------|-----------|
-| TTFT | 91.7ms | 84.4ms |
-| Generation p50 | 42.0ms/tok | 42.1ms/tok |
-| Generation p95 | 42.9ms/tok | 42.8ms/tok |
-| Tokens/sec | 23.8 | 23.7 |
+| Metric | 1-stage (12 layers) | 2-stage (6+6 layers) |
+|--------|---------------------|----------------------|
+| TTFT | 91.7ms | 96.6ms |
+| Generation p50 | 42.0ms/tok | 45.6ms/tok |
+| Generation p95 | 42.9ms/tok | 46.2ms/tok |
+| Tokens/sec | 23.8 | 22.0 |
+| Relay overhead | — | +3.5ms/tok (+8%) |
 
 ### Reproduce (commit `61cb135`)
 
