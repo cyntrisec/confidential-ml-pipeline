@@ -2,6 +2,7 @@ use candle_core::{DType, Device, Result, Tensor, D};
 use candle_nn::{Embedding, LayerNorm, Linear, Module, VarBuilder};
 use serde::Deserialize;
 use std::path::Path;
+use std::sync::Mutex;
 
 /// GPT-2 config parsed from HuggingFace config.json.
 #[derive(Debug, Clone, Deserialize)]
@@ -60,6 +61,7 @@ struct CausalSelfAttention {
     c_proj: Linear,
     n_head: usize,
     head_dim: usize,
+    kv_cache: Option<(Tensor, Tensor)>,
 }
 
 impl CausalSelfAttention {
@@ -72,10 +74,11 @@ impl CausalSelfAttention {
             c_proj,
             n_head: cfg.n_head,
             head_dim: n_embd / cfg.n_head,
+            kv_cache: None,
         })
     }
 
-    fn forward(&self, x: &Tensor, mask: &Tensor) -> Result<Tensor> {
+    fn forward(&mut self, x: &Tensor, mask: &Tensor) -> Result<Tensor> {
         let (b, t, c) = x.dims3()?;
         let qkv = self.c_attn.forward(x)?;
 
@@ -87,12 +90,21 @@ impl CausalSelfAttention {
         let q = q
             .reshape((b, t, self.n_head, self.head_dim))?
             .transpose(1, 2)?;
-        let k = k
+        let mut k = k
             .reshape((b, t, self.n_head, self.head_dim))?
             .transpose(1, 2)?;
-        let v = v
+        let mut v = v
             .reshape((b, t, self.n_head, self.head_dim))?
             .transpose(1, 2)?;
+
+        // Append to KV cache
+        if let Some((cached_k, cached_v)) = &self.kv_cache {
+            k = Tensor::cat(&[cached_k, &k], 2)?;
+            v = Tensor::cat(&[cached_v, &v], 2)?;
+        }
+        self.kv_cache = Some((k.clone(), v.clone()));
+
+        let _total_len = k.dim(2)?;
 
         // Scaled dot-product attention
         let scale = (self.head_dim as f64).sqrt();
@@ -104,6 +116,10 @@ impl CausalSelfAttention {
         // [B, n_head, T, head_dim] -> [B, T, C]
         let out = out.transpose(1, 2)?.reshape((b, t, c))?;
         self.c_proj.forward(&out)
+    }
+
+    fn clear_cache(&mut self) {
+        self.kv_cache = None;
     }
 }
 
@@ -148,7 +164,7 @@ impl Block {
         })
     }
 
-    fn forward(&self, x: &Tensor, mask: &Tensor) -> Result<Tensor> {
+    fn forward(&mut self, x: &Tensor, mask: &Tensor) -> Result<Tensor> {
         // Pre-norm residual
         let h = self.ln_1.forward(x)?;
         let h = self.attn.forward(&h, mask)?;
@@ -157,13 +173,23 @@ impl Block {
         let h = self.mlp.forward(&h)?;
         &x + h
     }
+
+    fn clear_cache(&mut self) {
+        self.attn.clear_cache();
+    }
 }
 
 /// A shard of GPT-2 containing a subset of layers.
 ///
 /// - First shard has wte + wpe embeddings.
 /// - Last shard has ln_f and uses tied wte.weight as lm_head.
+///
+/// Wrapped in Mutex for interior mutability (KV-cache updates through `&self`).
 pub struct Gpt2Shard {
+    inner: Mutex<Gpt2ShardInner>,
+}
+
+struct Gpt2ShardInner {
     wte: Option<Embedding>,
     wpe: Option<Embedding>,
     blocks: Vec<Block>,
@@ -173,6 +199,7 @@ pub struct Gpt2Shard {
     cfg: Gpt2Config,
     is_first: bool,
     is_last: bool,
+    past_len: usize,
 }
 
 impl Gpt2Shard {
@@ -246,14 +273,17 @@ impl Gpt2Shard {
         };
 
         Ok(Self {
-            wte,
-            wpe,
-            blocks,
-            ln_f,
-            lm_head_weight,
-            cfg: cfg.clone(),
-            is_first,
-            is_last,
+            inner: Mutex::new(Gpt2ShardInner {
+                wte,
+                wpe,
+                blocks,
+                ln_f,
+                lm_head_weight,
+                cfg: cfg.clone(),
+                is_first,
+                is_last,
+                past_len: 0,
+            }),
         })
     }
 
@@ -262,7 +292,22 @@ impl Gpt2Shard {
     /// - First shard: input_ids [B, T] (u32) → hidden [B, T, n_embd] (f32)
     /// - Middle shard: hidden [B, T, n_embd] → hidden [B, T, n_embd]
     /// - Last shard: hidden [B, T, n_embd] → logits [B, vocab_size] (last token only)
+    ///
+    /// Uses KV-cache: after the initial prompt, only the new token(s) need to be passed.
     pub fn forward(&self, input: &Tensor) -> Result<Tensor> {
+        let mut inner = self.inner.lock().unwrap();
+        inner.forward(input)
+    }
+
+    /// Clear KV-cache and reset position counter. Call between independent requests.
+    pub fn clear_cache(&self) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.clear_cache();
+    }
+}
+
+impl Gpt2ShardInner {
+    fn forward(&mut self, input: &Tensor) -> Result<Tensor> {
         let device = input.device();
 
         let mut hidden = if self.is_first {
@@ -271,9 +316,13 @@ impl Gpt2Shard {
             let wte = self.wte.as_ref().unwrap();
             let wpe = self.wpe.as_ref().unwrap();
 
-            let position_ids = Tensor::arange(0u32, t as u32, device)?
-                .unsqueeze(0)?
-                .broadcast_as((b, t))?;
+            let position_ids = Tensor::arange(
+                self.past_len as u32,
+                (self.past_len + t) as u32,
+                device,
+            )?
+            .unsqueeze(0)?
+            .broadcast_as((b, t))?;
             let token_emb = wte.forward(input)?;
             let pos_emb = wpe.forward(&position_ids)?;
             (&token_emb + &pos_emb)?
@@ -283,11 +332,13 @@ impl Gpt2Shard {
         };
 
         let seq_len = hidden.dim(1)?;
-        let mask = make_causal_mask(seq_len, 0, device)?;
+        let mask = make_causal_mask(seq_len, self.past_len, device)?;
 
-        for block in &self.blocks {
+        for block in &mut self.blocks {
             hidden = block.forward(&hidden, &mask)?;
         }
+
+        self.past_len += seq_len;
 
         if self.is_last {
             let ln_f = self.ln_f.as_ref().unwrap();
@@ -301,6 +352,13 @@ impl Gpt2Shard {
             Ok(logits)
         } else {
             Ok(hidden)
+        }
+    }
+
+    fn clear_cache(&mut self) {
+        self.past_len = 0;
+        for block in &mut self.blocks {
+            block.clear_cache();
         }
     }
 }

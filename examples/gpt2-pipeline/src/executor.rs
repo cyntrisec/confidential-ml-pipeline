@@ -65,33 +65,6 @@ fn owned_to_candle_f32(t: &OwnedTensor, device: &Device) -> Result<Tensor, Stage
     })
 }
 
-/// Converts a candle F32 Tensor back to an OwnedTensor (flat shape).
-#[allow(dead_code)]
-fn candle_to_owned_f32(t: &Tensor, name: &str) -> Result<OwnedTensor, StageError> {
-    let t = t.flatten_all().map_err(|e| StageError::ForwardFailed {
-        request_id: 0,
-        micro_batch: 0,
-        reason: format!("flatten failed: {e}"),
-    })?;
-    let values = t.to_vec1::<f32>().map_err(|e| StageError::ForwardFailed {
-        request_id: 0,
-        micro_batch: 0,
-        reason: format!("to_vec1 failed: {e}"),
-    })?;
-    let shape: Vec<u32> = t
-        .dims()
-        .iter()
-        .map(|&d| d as u32)
-        .collect();
-    let data: Vec<u8> = values.iter().flat_map(|v| v.to_le_bytes()).collect();
-    Ok(OwnedTensor {
-        name: name.to_string(),
-        dtype: DType::F32,
-        shape,
-        data: Bytes::from(data),
-    })
-}
-
 /// Converts a candle Tensor to OwnedTensor, preserving the original shape.
 fn candle_to_owned_f32_shaped(
     t: &Tensor,
@@ -195,6 +168,30 @@ impl StageExecutor for Gpt2StageExecutor {
             reason: "no input tensor".to_string(),
         })?;
 
+        // Check for cache-clear sentinel: a U32 tensor with shape [0] signals new prompt.
+        if input_tensor.dtype == DType::U32 && input_tensor.shape == [0] {
+            shard.clear_cache();
+            // The actual input follows as the second tensor.
+            let actual_input = inputs.get(1).ok_or_else(|| StageError::ForwardFailed {
+                request_id,
+                micro_batch,
+                reason: "cache-clear sentinel without actual input".to_string(),
+            })?;
+            return self.run_forward(shard, actual_input, request_id, micro_batch);
+        }
+
+        self.run_forward(shard, input_tensor, request_id, micro_batch)
+    }
+}
+
+impl Gpt2StageExecutor {
+    fn run_forward(
+        &self,
+        shard: &Gpt2Shard,
+        input_tensor: &OwnedTensor,
+        request_id: RequestId,
+        micro_batch: u32,
+    ) -> Result<ForwardOutput, StageError> {
         let device = Device::Cpu;
         let candle_input = if self.is_first {
             owned_to_candle_u32(input_tensor, &device)?

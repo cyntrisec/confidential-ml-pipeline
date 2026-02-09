@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::time::Instant;
 
 use bytes::Bytes;
 use clap::Parser;
@@ -31,27 +32,39 @@ struct Args {
     /// Number of tokens to generate.
     #[arg(long, default_value = "20")]
     max_tokens: usize,
+
+    /// Output per-token latency stats as JSON to this file.
+    #[arg(long)]
+    latency_out: Option<String>,
 }
 
-fn encode_token_ids(token_ids: &[u32]) -> Vec<OwnedTensor> {
+/// Build a cache-clear sentinel tensor (U32 with shape [0]).
+fn cache_clear_sentinel() -> OwnedTensor {
+    OwnedTensor {
+        name: "cache_clear".to_string(),
+        dtype: DType::U32,
+        shape: vec![0],
+        data: Bytes::new(),
+    }
+}
+
+fn encode_token_ids(token_ids: &[u32]) -> OwnedTensor {
     let seq_len = token_ids.len();
     let data: Vec<u8> = token_ids.iter().flat_map(|&id| id.to_le_bytes()).collect();
-    vec![OwnedTensor {
+    OwnedTensor {
         name: "input_ids".to_string(),
         dtype: DType::U32,
         shape: vec![1, seq_len as u32],
         data: Bytes::from(data),
-    }]
+    }
 }
 
 fn decode_logits(tensor: &OwnedTensor) -> u32 {
-    // logits shape: [1, vocab_size] or [vocab_size], dtype F32
     let values: Vec<f32> = tensor
         .data
         .chunks_exact(4)
         .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
         .collect();
-    // argmax
     let (best_idx, _) = values
         .iter()
         .enumerate()
@@ -116,11 +129,26 @@ async fn main() -> anyhow::Result<()> {
 
     print!("{}", args.text);
 
-    for step in 0..args.max_tokens {
-        let seq_len = token_ids.len();
-        let input = vec![encode_token_ids(&token_ids)];
+    let mut latencies_ms: Vec<f64> = Vec::new();
 
+    for step in 0..args.max_tokens {
+        let t0 = Instant::now();
+
+        let input = if step == 0 {
+            // First step: clear cache + send full prompt
+            vec![vec![cache_clear_sentinel(), encode_token_ids(&token_ids)]]
+        } else {
+            // Subsequent steps: send only the new token (KV-cache handles history)
+            let new_token = *token_ids.last().unwrap();
+            vec![vec![encode_token_ids(&[new_token])]]
+        };
+
+        let seq_len = token_ids.len();
         let result = orch.infer(input, seq_len as u32).await?;
+
+        let elapsed = t0.elapsed();
+        let ms = elapsed.as_secs_f64() * 1000.0;
+        latencies_ms.push(ms);
 
         let output_tensors = &result.outputs[0];
         let logits = &output_tensors[0];
@@ -141,11 +169,44 @@ async fn main() -> anyhow::Result<()> {
             next_token,
             decoded = decoded.as_str(),
             total_tokens = token_ids.len(),
+            latency_ms = format!("{ms:.1}"),
             "generated token"
         );
     }
 
     println!();
+
+    // Print latency summary
+    if !latencies_ms.is_empty() {
+        let mut sorted = latencies_ms.clone();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let p50 = sorted[sorted.len() / 2];
+        let p95 = sorted[(sorted.len() as f64 * 0.95) as usize];
+        let prompt_ms = latencies_ms[0];
+        let gen_avg: f64 = if latencies_ms.len() > 1 {
+            latencies_ms[1..].iter().sum::<f64>() / (latencies_ms.len() - 1) as f64
+        } else {
+            0.0
+        };
+        eprintln!();
+        eprintln!("--- Latency Summary ---");
+        eprintln!("  Prompt (first token):  {prompt_ms:.1}ms");
+        eprintln!("  Generation avg:        {gen_avg:.1}ms/token");
+        eprintln!("  p50:                   {p50:.1}ms");
+        eprintln!("  p95:                   {p95:.1}ms");
+        eprintln!("  Tokens generated:      {}", latencies_ms.len());
+    }
+
+    // Write latency JSON if requested
+    if let Some(path) = &args.latency_out {
+        let json = serde_json::json!({
+            "latencies_ms": latencies_ms,
+            "prompt_ms": latencies_ms.first().copied().unwrap_or(0.0),
+            "generation_tokens": if latencies_ms.len() > 1 { latencies_ms.len() - 1 } else { 0 },
+        });
+        std::fs::write(path, serde_json::to_string_pretty(&json)?)?;
+        info!(path, "latency data written");
+    }
 
     info!("generation complete, shutting down");
     orch.shutdown().await?;
