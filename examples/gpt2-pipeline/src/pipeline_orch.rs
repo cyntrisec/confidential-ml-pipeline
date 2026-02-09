@@ -53,10 +53,6 @@ struct Args {
     #[arg(long)]
     data_out_listen: String,
 
-    /// (VSock mode) Port to listen for the last stage's data_out connection.
-    #[cfg(any(feature = "vsock-nitro", feature = "vsock-mock"))]
-    #[arg(long)]
-    data_out_port: u32,
 }
 
 /// Build a cache-clear sentinel tensor (U32 with shape [0]).
@@ -152,12 +148,18 @@ async fn main() -> anyhow::Result<()> {
     let mut orch = {
         use tokio_vsock::{VsockAddr, VsockListener, VMADDR_CID_ANY};
 
-        info!(data_out_port = args.data_out_port, "binding VSock data_out listener");
+        // Read data_out port from last stage's endpoint in the manifest.
+        let last_stage = manifest
+            .stages
+            .last()
+            .ok_or_else(|| anyhow::anyhow!("manifest has no stages"))?;
+        let (_, data_out_port) = vsock::resolve_vsock(&last_stage.endpoint.data_out)?;
 
-        let dout_listener =
-            VsockListener::bind(VsockAddr::new(VMADDR_CID_ANY, args.data_out_port))
-                .map_err(|e| anyhow::anyhow!("failed to bind VSock listener: {e}"))?;
-        info!(port = args.data_out_port, "VSock data_out listener bound");
+        info!(data_out_port, "binding VSock data_out listener");
+
+        let dout_listener = VsockListener::bind(VsockAddr::new(VMADDR_CID_ANY, data_out_port))
+            .map_err(|e| anyhow::anyhow!("failed to bind VSock listener: {e}"))?;
+        info!(port = data_out_port, "VSock data_out listener bound");
 
         #[cfg(feature = "vsock-mock")]
         let (verifier, provider) = (MockVerifier::new(), MockProvider::new());

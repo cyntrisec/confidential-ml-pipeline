@@ -117,12 +117,17 @@ pub async fn run_stage_with_listeners_vsock<E: StageExecutor>(
 /// The `data_out_listener` must already be bound; its port should be
 /// communicated to the last stage as that stage's `data_out_target`.
 ///
+/// For multi-stage pipelines, the host relays inter-stage traffic because
+/// enclave-to-enclave VSock is not supported. Relay listeners are bound
+/// on the ports specified by each non-final stage's `endpoint.data_out`.
+///
 /// Flow:
 /// 1. VSock connect to each stage's control port
 /// 2. `orch.init()` — handshake + Init/Ready on all control channels
 /// 3. `orch.send_establish_data_channels()`
-/// 4. Concurrently connect data_in to stage 0 + accept data_out from last stage
-/// 5. `orch.complete_data_channels()`
+/// 4. Bind relay listeners for inter-stage data
+/// 5. Concurrently: connect data_in, accept data_out, establish relay links
+/// 6. `orch.complete_data_channels()`
 pub async fn init_orchestrator_vsock(
     config: OrchestratorConfig,
     manifest: ShardManifest,
@@ -154,16 +159,55 @@ pub async fn init_orchestrator_vsock(
     // 3. Send EstablishDataChannels.
     orch.send_establish_data_channels().await?;
 
-    // 4. Concurrently connect data_in + accept data_out.
+    // 4. Bind relay listeners for inter-stage data (host relays because
+    //    enclave-to-enclave VSock is not supported).
+    let mut relay_listeners = Vec::new();
+    for i in 0..num_stages.saturating_sub(1) {
+        let (_, relay_port) = resolve_vsock(&orch.manifest().stages[i].endpoint.data_out)?;
+        let listener = VsockListener::bind(VsockAddr::new(VMADDR_CID_ANY, relay_port))
+            .map_err(PipelineError::Io)?;
+        info!(stage = i, relay_port, "orchestrator: relay listener bound");
+        relay_listeners.push(listener);
+    }
+
+    // Collect downstream addresses (stage[i+1].data_in) for relay connections.
+    let mut relay_downstream_addrs = Vec::new();
+    for i in 1..num_stages {
+        relay_downstream_addrs.push(resolve_vsock(&orch.manifest().stages[i].endpoint.data_in)?);
+    }
+
+    // 5. Concurrently connect data endpoints and establish relay links.
     let (stage0_cid, stage0_din_port) = resolve_vsock(&orch.manifest().stages[0].endpoint.data_in)?;
 
-    let (din_stream, dout_stream) = tokio::try_join!(
+    let relay_policy = retry_policy.clone();
+    let relay_fut = async {
+        let mut handles = Vec::new();
+        for (i, listener) in relay_listeners.iter().enumerate() {
+            let (cid, port) = relay_downstream_addrs[i];
+            let (upstream, downstream) = tokio::try_join!(
+                accept_vsock(listener),
+                connect_vsock_retry(cid, port, &relay_policy),
+            )?;
+            info!(
+                upstream_stage = i,
+                downstream_stage = i + 1,
+                "orchestrator: relay link established"
+            );
+            handles.push(crate::relay::start_relay_link(upstream, downstream));
+        }
+        Ok::<Vec<crate::relay::RelayHandle>, PipelineError>(handles)
+    };
+
+    let (din_stream, dout_stream, relay_handles) = tokio::try_join!(
         connect_vsock_retry(stage0_cid, stage0_din_port, &retry_policy),
         accept_vsock(&data_out_listener),
+        relay_fut,
     )?;
 
-    // 5. Complete data channels.
-    orch.complete_data_channels(din_stream, dout_stream, vec![], verifier, provider)
+    info!("orchestrator: all VSock data transports connected");
+
+    // 6. Complete data channels.
+    orch.complete_data_channels(din_stream, dout_stream, relay_handles, verifier, provider)
         .await?;
 
     Ok(orch)

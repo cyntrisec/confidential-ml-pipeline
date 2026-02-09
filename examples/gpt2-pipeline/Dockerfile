@@ -22,16 +22,16 @@ COPY --from=builder /build/confidential-ml-pipeline/examples/gpt2-pipeline/targe
 # Copy model files (pre-downloaded by build_nitro.sh)
 COPY confidential-ml-pipeline/examples/gpt2-pipeline/model/ /model/
 
-# Copy manifest for single-stage pipeline (ports are fixed, CIDs don't matter inside enclave)
-COPY confidential-ml-pipeline/examples/gpt2-pipeline/manifests/manifest_1stage_vsock.json /app/manifest.json
+# Copy manifest (configurable: 1-stage or 2-stage)
+ARG MANIFEST=manifest_2stage_vsock.json
+COPY confidential-ml-pipeline/examples/gpt2-pipeline/manifests/${MANIFEST} /app/manifest.json
 
 # Copy init script
 COPY confidential-ml-pipeline/examples/gpt2-pipeline/init.sh /app/init.sh
 RUN chmod +x /app/init.sh
 
-# Default env vars for single-stage pipeline
-ENV STAGE_IDX=0
-ENV DATA_OUT_CID=3
-ENV DATA_OUT_PORT=5002
+# Stage index (each EIF gets its own value)
+ARG STAGE_IDX=0
+ENV STAGE_IDX=${STAGE_IDX}
 
 ENTRYPOINT ["/app/init.sh"]

@@ -47,15 +47,6 @@ struct Args {
     #[arg(long)]
     data_out_target: String,
 
-    /// (VSock mode) CID to connect data_out to.
-    #[cfg(any(feature = "vsock-nitro", feature = "vsock-mock"))]
-    #[arg(long)]
-    data_out_cid: u32,
-
-    /// (VSock mode) Port to connect data_out to.
-    #[cfg(any(feature = "vsock-nitro", feature = "vsock-mock"))]
-    #[arg(long)]
-    data_out_port: u32,
 }
 
 #[tokio::main]
@@ -113,13 +104,15 @@ async fn main() -> anyhow::Result<()> {
     {
         let (_, ctrl_port) = vsock::resolve_vsock(&stage_spec.endpoint.control)?;
         let (_, din_port) = vsock::resolve_vsock(&stage_spec.endpoint.data_in)?;
+        let (data_out_cid, data_out_port) =
+            vsock::resolve_vsock(&stage_spec.endpoint.data_out)?;
 
         info!(
             stage = args.stage_idx,
             ctrl_port,
             data_in_port = din_port,
-            data_out_cid = args.data_out_cid,
-            data_out_port = args.data_out_port,
+            data_out_cid,
+            data_out_port,
             model_dir = %args.model_dir,
             "starting GPT-2 stage worker (VSock)"
         );
@@ -142,8 +135,8 @@ async fn main() -> anyhow::Result<()> {
             StageConfig::default(),
             ctrl_lis,
             din_lis,
-            args.data_out_cid,
-            args.data_out_port,
+            data_out_cid,
+            data_out_port,
             &provider,
             &verifier,
         )
