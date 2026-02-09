@@ -54,6 +54,8 @@ Each **stage** runs inside an enclave and:
 | `tcp` | Yes | TCP transport backend + TCP deployment helpers |
 | `vsock` | No | VSock transport backend for Nitro Enclaves |
 | `nitro` | No | AWS Nitro attestation provider/verifier |
+| `sev-snp` | No | AMD SEV-SNP attestation provider/verifier |
+| `tdx` | No | Intel TDX attestation provider/verifier |
 
 ## Quick Start
 
@@ -129,7 +131,7 @@ cargo run --bin pipeline-orch --manifest-path examples/tcp-pipeline/Cargo.toml -
 ## Testing
 
 ```bash
-# All tests (47 total: 23 unit + 18 integration + 3 TCP + 4 stress)
+# All tests (51 total: 23 unit + 18 integration + 3 TCP + 4 stress + 4 timeout)
 cargo test
 
 # Stress tests only (100 sequential requests, 1.5 MiB tensors, 16 micro-batches, 3-stage multi-request)

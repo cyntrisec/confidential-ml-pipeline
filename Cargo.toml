@@ -25,6 +25,8 @@ mock = ["confidential-ml-transport/mock"]
 tcp = ["confidential-ml-transport/tcp"]
 vsock = ["confidential-ml-transport/vsock"]
 nitro = ["confidential-ml-transport/nitro"]
+sev-snp = ["confidential-ml-transport/sev-snp"]
+tdx = ["confidential-ml-transport/tdx"]
 
 [dev-dependencies]
 tokio = { version = "1.38", features = ["full", "test-util"] }

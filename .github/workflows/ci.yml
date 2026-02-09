@@ -11,8 +11,15 @@ env:
 
 jobs:
   test:
-    name: Test
+    name: Test (${{ matrix.features }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        features:
+          - --all-features
+          - --no-default-features --features mock,tcp
+          - --features mock
+          - --features tcp
     steps:
       - uses: actions/checkout@v4
       - name: Clone confidential-ml-transport
@@ -20,7 +27,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Run tests
-        run: cargo test --all-features
+        run: cargo test ${{ matrix.features }}
 
   clippy:
     name: Clippy
