@@ -2,6 +2,8 @@
 
 Multi-enclave pipeline orchestration for confidential ML inference.
 
+> **Disclaimer:** This project is under development. All source code and features are not production ready.
+
 ## Overview
 
 `confidential-ml-pipeline` builds on top of [`confidential-ml-transport`](https://github.com/cyntrisec/confidential-ml-transport) to orchestrate model-parallel inference across multiple TEE enclaves. A model is sharded across N stages, each running inside a separate enclave, and the orchestrator drives input tensors through the pipeline while maintaining encrypted, attestation-bound channels between all participants.
