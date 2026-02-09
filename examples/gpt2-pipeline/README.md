@@ -81,9 +81,33 @@ RUST_LOG=info target/release/pipeline-orch \
 | Vocab size | 50257 |
 | Weights format | SafeTensors (~500MB) |
 
+## Benchmarks
+
+Greedy decoding, 20 tokens, KV-cache enabled, TCP mock transport, Intel Core i7-8565U @ 1.80GHz:
+
+| Metric | 2-stage | 3-stage |
+|--------|---------|---------|
+| Prompt (TTFT) | 71.9ms | 64.9ms |
+| Generation avg | 45.9ms/tok | 47.3ms/tok |
+| Generation p50 | 43.3ms | 46.6ms |
+| Generation p95 | 59.3ms | 60.5ms |
+
+Run `bash scripts/bench.sh` to reproduce.
+
+## Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/download_model.sh` | Download GPT-2 from HuggingFace (~500MB) |
+| `scripts/run_local.sh` | 2-stage TCP test on localhost |
+| `scripts/run_local_3stage.sh` | 3-stage TCP test on localhost |
+| `scripts/bench.sh` | Benchmark 2-stage and 3-stage, output markdown table |
+| `scripts/check_quality.sh` | Quality checks (geography, continuation, determinism) |
+| `scripts/test_failure.sh` | Kill a stage mid-generation, verify graceful recovery |
+
 ## Notes
 
-- **No KV cache**: Each autoregressive step re-processes the full sequence. Acceptable for demo purposes (~100-300ms/token on CPU).
+- **KV-cache**: After the initial prompt, only the new token is sent per step. A cache-clear sentinel (U32 tensor with shape `[0]`) resets KV state between independent requests.
 - **Greedy decoding**: Uses argmax (no sampling/temperature).
 - **Conv1D weights**: GPT-2 stores linear weights as `[in, out]`. The loader transposes them for candle-nn's `[out, in]` convention.
 - **Tied lm_head**: GPT-2 ties the output projection to the token embedding weights (`wte.weight`).
