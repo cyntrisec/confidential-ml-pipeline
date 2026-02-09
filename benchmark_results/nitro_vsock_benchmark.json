@@ -1,0 +1,70 @@
+{
+  "benchmark": "GPT-2 124M Nitro Enclave Pipeline (VSock)",
+  "date": "2026-02-09",
+  "commit": "c51cbc9",
+  "environment": {
+    "instance_type": "m6i.2xlarge",
+    "cpu": "Intel Xeon Platinum 8375C @ 2.90GHz (Ice Lake)",
+    "vcpus_total": 8,
+    "memory_total_gb": 32,
+    "region": "us-east-1",
+    "os": "Amazon Linux 2023 (kernel 6.1.161)",
+    "enclave_vcpus": 2,
+    "enclave_memory_mb": 3072,
+    "enclave_kernel": "4.14.256-209.484.amzn2 (Nitro Enclave kernel)",
+    "debug_mode": true,
+    "pcr0": "3b343ba7ae9664b137535525f174e62a29ff2dcab4edc0474e875d389cb87902950f5ef6f6a2e7486948d9f055ca08cd"
+  },
+  "model": {
+    "name": "GPT-2 (openai-community/gpt2)",
+    "parameters": "124M",
+    "layers": 12,
+    "hidden_dim": 768,
+    "vocab_size": 50257,
+    "format": "safetensors",
+    "size_mb": 523,
+    "stages": 1,
+    "kv_cache": true
+  },
+  "transport": {
+    "protocol": "VSock (host CID=3 <-> enclave CID=16/18)",
+    "encryption": "ChaCha20-Poly1305 (AEAD per frame)",
+    "handshake": "X25519 ECDH + HPKE key derivation",
+    "attestation": "Mock (VSock transport verified, Nitro attestation in follow-up)",
+    "framing": "Binary tensor framing (confidential-ml-transport v0.2.0)"
+  },
+  "results": {
+    "run_1": {
+      "prompt": "The capital of France is",
+      "prompt_tokens": 5,
+      "max_tokens": 20,
+      "output": "The capital of France is the capital of the French Republic, and the capital of the French Republic is the capital of the French",
+      "ttft_ms": 91.7,
+      "generation_avg_ms": 42.1,
+      "generation_p50_ms": 42.0,
+      "generation_p95_ms": 42.9,
+      "generation_min_ms": 41.4,
+      "generation_max_ms": 42.9
+    },
+    "run_2": {
+      "prompt": "Machine learning is transforming",
+      "prompt_tokens": 4,
+      "max_tokens": 50,
+      "output": "Machine learning is transforming the way we think about the world.\n\nThe world is changing, and we need to change it.\n\nWe need to change the way we think about the world.\n\nWe need to change the way we think about the world.",
+      "ttft_ms": 84.4,
+      "generation_avg_ms": 42.2,
+      "generation_p50_ms": 42.1,
+      "generation_p95_ms": 42.8,
+      "generation_min_ms": 41.6,
+      "generation_max_ms": 44.4
+    }
+  },
+  "summary": {
+    "ttft_ms": "84-92 (includes model load + first forward pass)",
+    "ms_per_token_p50": 42.0,
+    "ms_per_token_p95": 42.9,
+    "tokens_per_second": 23.8,
+    "handshake_latency_ms": "<2 (control + data channels)",
+    "total_pipeline_init_ms": "~820 (control connect + handshake + model load + data channels)"
+  }
+}
