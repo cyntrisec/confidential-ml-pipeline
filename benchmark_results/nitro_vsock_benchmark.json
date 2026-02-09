@@ -129,6 +129,12 @@
     "generation_p50_delta_ms": 3.2,
     "generation_p95_delta_ms": 3.3,
     "throughput_delta_percent": -7.1,
-    "note": "3-stage adds 2 relay hops (stage0->host->stage1 + stage1->host->stage2) but per-token overhead is nearly identical to 2-stage, suggesting relay cost is dominated by the first hop setup rather than additional hops"
+    "note": "3-stage adds modest overhead vs 1-stage (5-8%) and does not scale linearly with hop count; 3-stage performs near 2-stage. Second relay hop adds negligible incremental latency over the first."
+  },
+  "methodology": {
+    "runs_per_config": 1,
+    "note": "Single run per config. Results are directional, not statistically rigorous. Future: 5-10 reps with mean + stddev.",
+    "debug_mode": true,
+    "same_instance_across_configs": false
   }
 }

@@ -139,22 +139,23 @@ All inter-stage data encrypted end-to-end via `SecureChannel` (ChaCha20-Poly1305
 | Tokens/sec (20 tok) | 23.8 | 22.0 | 22.1 |
 | Tokens/sec (50 tok) | 23.7 | 22.0 | 22.6 |
 
-### Key Finding: Relay Overhead Does NOT Scale Linearly
+### Overhead vs 1-Stage Baseline
 
-The 3-stage pipeline (2 relay hops) has **nearly identical** per-token latency to the 2-stage pipeline (1 relay hop):
+All multi-stage configurations add 5-8% per-token overhead vs the 1-stage baseline:
 
-| Metric | 2-Stage Overhead | 3-Stage Overhead |
-|--------|-----------------|-----------------|
+| Metric | 2-Stage Overhead (vs 1-stage) | 3-Stage Overhead (vs 1-stage) |
+|--------|-------------------------------|-------------------------------|
 | Gen p50 (20 tok) | +3.6ms (+8.6%) | +3.2ms (+7.6%) |
 | Gen p50 (50 tok) | +3.3ms (+7.8%) | +2.1ms (+5.0%) |
+| Gen p95 (20 tok) | +3.3ms (+7.7%) | +3.3ms (+7.7%) |
 | Gen p95 (50 tok) | +4.0ms (+9.3%) | +2.0ms (+4.7%) |
+| p95/p50 ratio | 1.01-1.03 | 1.01-1.02 |
 
-This means the overhead is dominated by the **first relay hop setup**, not the number of hops. Adding stages is essentially free in terms of per-token latency, because:
-1. All relay hops operate in parallel (pipelined — stage 0 sends while stage 1 processes while stage 2 returns)
-2. The VSock round-trip time per hop is <1ms
-3. The bottleneck is compute within each stage, not inter-stage communication
+The 3-stage pipeline adds modest overhead vs 1-stage and does not scale linearly with hop count; 3-stage performs near 2-stage in this Nitro setup. The second relay hop adds negligible incremental latency over the first.
 
 Output text is **identical** across all three configurations, confirming correctness.
+
+**Limitations:** Each configuration was run once per prompt. Confirming the non-linear scaling claim requires multiple repetitions (5-10 runs) with mean + stddev, using fixed prompt length and token count across all runs.
 
 ## Pipeline Init Breakdown
 
@@ -168,13 +169,20 @@ Output text is **identical** across all three configurations, confirming correct
 
 ## Key Observations
 
-1. **Relay overhead does not scale with stage count** — 3-stage (2 relay hops) has the same per-token overhead as 2-stage (1 relay hop). The pipeline is compute-bound, not communication-bound.
+1. **Non-linear overhead scaling** — 3-stage (2 relay hops) has nearly identical per-token latency to 2-stage (1 relay hop), suggesting the incremental cost of additional relay hops is small relative to the initial relay overhead. Both add 5-8% over 1-stage.
 
 2. **Output is identical** — All three configurations produce the same greedy-decoded text, confirming correct activation relay through the host.
 
-3. **Consistent generation** — p95/p50 ratio is 1.01-1.03 for all configurations, indicating near-zero variance.
+3. **Consistent generation** — p95/p50 ratio is 1.01-1.03 for all configurations, indicating near-zero variance within each run.
 
 4. **First multi-enclave ML pipeline** — No prior open-source implementation exists for pipeline-parallel ML inference across separate TEE enclaves with encrypted activation relay.
+
+## Methodology Notes
+
+- Single run per configuration per prompt (N=1). Results are directional, not statistically rigorous.
+- Future work: 5-10 repetitions per config, fixed prompt/token count, report mean + stddev + 95% CI.
+- Debug mode enabled (may add minor overhead vs production mode).
+- All runs on the same instance type (m6i.2xlarge) but not the same instance (reboot/relaunch between configs due to enclave E39 zombie issue).
 
 ## PCR Measurements
 
