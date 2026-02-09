@@ -87,11 +87,48 @@
       "tokens_per_second": 22.0
     }
   },
-  "relay_overhead": {
+  "three_stage": {
+    "commit": "74bf9c0",
+    "stages": 3,
+    "layers_per_stage": 4,
+    "enclave_vcpus_each": 2,
+    "enclave_memory_mb_each": 3072,
+    "eif_size_mb_each": 614,
+    "relay_ports": [6001, 6002],
+    "run_1": {
+      "prompt": "The capital of France is",
+      "prompt_tokens": 5,
+      "max_tokens": 20,
+      "output": "The capital of France is the capital of the French Republic, and the capital of the French Republic is the capital of the French",
+      "ttft_ms": 99.6,
+      "generation_avg_ms": 45.2,
+      "generation_p50_ms": 45.2,
+      "generation_p95_ms": 46.2,
+      "tokens_per_second": 22.1
+    },
+    "run_2": {
+      "prompt": "Machine learning is transforming",
+      "prompt_tokens": 4,
+      "max_tokens": 50,
+      "ttft_ms": 88.8,
+      "generation_avg_ms": 44.2,
+      "generation_p50_ms": 44.2,
+      "generation_p95_ms": 44.8,
+      "tokens_per_second": 22.6
+    }
+  },
+  "relay_overhead_2stage": {
     "ttft_delta_ms": 4.9,
     "generation_p50_delta_ms": 3.5,
     "generation_p95_delta_ms": 3.6,
     "throughput_delta_percent": -7.6,
     "note": "Overhead from two additional VSock hops (stage0->host->stage1) plus inter-stage SecureChannel handshake"
+  },
+  "relay_overhead_3stage": {
+    "ttft_delta_ms": 7.9,
+    "generation_p50_delta_ms": 3.2,
+    "generation_p95_delta_ms": 3.3,
+    "throughput_delta_percent": -7.1,
+    "note": "3-stage adds 2 relay hops (stage0->host->stage1 + stage1->host->stage2) but per-token overhead is nearly identical to 2-stage, suggesting relay cost is dominated by the first hop setup rather than additional hops"
   }
 }
