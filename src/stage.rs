@@ -240,22 +240,26 @@ impl<E: StageExecutor> StageRuntime<E> {
         &self,
         control: &mut SecureChannel<T>,
     ) -> crate::error::Result<(bool, bool)> {
-        let msg = recv_control(control).await?;
-        match msg {
-            OrchestratorMsg::EstablishDataChannels {
-                has_upstream,
-                has_downstream,
-            } => Ok((has_upstream, has_downstream)),
-            OrchestratorMsg::Ping { seq } => {
-                control
-                    .send(StageMsg::Pong { seq }.to_bytes())
-                    .await
-                    .map_err(PipelineError::Transport)?;
-                Box::pin(self.wait_for_establish_data_channels(control)).await
+        loop {
+            let msg = recv_control(control).await?;
+            match msg {
+                OrchestratorMsg::EstablishDataChannels {
+                    has_upstream,
+                    has_downstream,
+                } => return Ok((has_upstream, has_downstream)),
+                OrchestratorMsg::Ping { seq } => {
+                    control
+                        .send(StageMsg::Pong { seq }.to_bytes())
+                        .await
+                        .map_err(PipelineError::Transport)?;
+                    // Continue looping; the next message should be EstablishDataChannels.
+                }
+                other => {
+                    return Err(PipelineError::Protocol(format!(
+                        "expected EstablishDataChannels, got {other:?}"
+                    )));
+                }
             }
-            other => Err(PipelineError::Protocol(format!(
-                "expected EstablishDataChannels, got {other:?}"
-            ))),
         }
     }
 
@@ -419,7 +423,7 @@ async fn recv_tensors<T: AsyncRead + AsyncWrite + Unpin + Send>(
             Message::Data(data) if data.as_ref() == b"END" => break,
             Message::Data(data) if data.as_ref() == ERROR_SENTINEL => {
                 return Err(PipelineError::StageFailed {
-                    stage_idx: 0,
+                    stage_idx: usize::MAX,
                     reason: "upstream stage reported error".into(),
                 });
             }

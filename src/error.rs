@@ -1,5 +1,3 @@
-use std::fmt;
-
 /// Errors arising from manifest parsing and validation.
 #[derive(Debug, thiserror::Error)]
 pub enum ManifestError {
@@ -72,8 +70,6 @@ pub enum PipelineError {
     RequestFailed { request_id: u64, reason: String },
     #[error("pipeline shutting down")]
     Shutdown,
-    #[error("relay error: {0}")]
-    Relay(String),
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
     #[error("timeout: {0}")]
@@ -86,9 +82,3 @@ pub enum PipelineError {
 
 /// Convenience alias.
 pub type Result<T> = std::result::Result<T, PipelineError>;
-
-impl From<StageError> for fmt::Error {
-    fn from(_: StageError) -> Self {
-        fmt::Error
-    }
-}

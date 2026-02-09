@@ -370,7 +370,12 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
         input_tensors: Vec<Vec<OwnedTensor>>,
         seq_len: u32,
     ) -> crate::error::Result<InferenceResult> {
-        let num_micro_batches = input_tensors.len() as u32;
+        let num_micro_batches = u32::try_from(input_tensors.len()).map_err(|_| {
+            PipelineError::Protocol(format!(
+                "too many micro-batches: {} exceeds u32::MAX",
+                input_tensors.len()
+            ))
+        })?;
 
         if num_micro_batches == 0 {
             return Ok(InferenceResult {
@@ -574,9 +579,14 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
         }
 
         let timeout = self.config.health_check_timeout;
-        tokio::time::timeout(timeout, self.health_check_inner())
-            .await
-            .map_err(|_| PipelineError::Timeout("health check timed out".into()))?
+        match tokio::time::timeout(timeout, self.health_check_inner()).await {
+            Ok(result) => result,
+            Err(_) => {
+                warn!("health check timed out, tainting pipeline");
+                self.tainted = true;
+                Err(PipelineError::Timeout("health check timed out".into()))
+            }
+        }
     }
 
     async fn health_check_inner(&mut self) -> crate::error::Result<()> {
@@ -775,6 +785,8 @@ async fn drain_control_until_request_complete<T: AsyncRead + AsyncWrite + Unpin 
 
 /// Receive tensors from data_out until END sentinel.
 /// Returns `PipelineError::StageFailed` if an error sentinel is received.
+/// Note: the error sentinel does not carry a stage index, so `stage_idx` is
+/// set to `usize::MAX` as a sentinel value indicating "unknown origin."
 async fn recv_output_tensors<T: AsyncRead + AsyncWrite + Unpin + Send>(
     channel: &mut SecureChannel<T>,
 ) -> crate::error::Result<Vec<OwnedTensor>> {
@@ -786,7 +798,7 @@ async fn recv_output_tensors<T: AsyncRead + AsyncWrite + Unpin + Send>(
             Message::Data(data) if data.as_ref() == b"END" => break,
             Message::Data(data) if data.as_ref() == ERROR_SENTINEL => {
                 return Err(PipelineError::StageFailed {
-                    stage_idx: 0,
+                    stage_idx: usize::MAX,
                     reason: "stage reported error on data channel".into(),
                 });
             }
@@ -801,11 +813,27 @@ async fn recv_output_tensors<T: AsyncRead + AsyncWrite + Unpin + Send>(
     Ok(tensors)
 }
 
-/// Generate a pseudo-random request ID.
+/// Generate a unique request ID using an atomic counter seeded with the current
+/// time. This avoids collisions that a pure nanosecond timestamp could produce
+/// when two calls happen within the same clock tick.
 fn rand_request_id() -> u64 {
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::SystemTime;
-    let d = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap_or_default();
-    d.as_nanos() as u64
+
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    // Seed counter with timestamp on first call (lazy initialization).
+    // Subsequent calls just increment, guaranteeing uniqueness within this process.
+    let prev = COUNTER.fetch_add(1, Ordering::Relaxed);
+    if prev == 0 {
+        let seed = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos() as u64;
+        // Set the counter to the timestamp seed; next call will use seed+1, etc.
+        COUNTER.store(seed.wrapping_add(1), Ordering::Relaxed);
+        seed
+    } else {
+        prev
+    }
 }
