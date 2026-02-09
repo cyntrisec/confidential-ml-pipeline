@@ -11,9 +11,21 @@ path = "src/stage_worker.rs"
 name = "pipeline-orch"
 path = "src/pipeline_orch.rs"
 
+[features]
+default = ["tcp-mock"]
+tcp-mock = ["confidential-ml-pipeline/mock", "confidential-ml-pipeline/tcp"]
+vsock-nitro = [
+    "confidential-ml-pipeline/vsock",
+    "confidential-ml-pipeline/nitro",
+    "confidential-ml-transport/vsock",
+    "confidential-ml-transport/nitro",
+    "dep:tokio-vsock",
+]
+
 [dependencies]
-confidential-ml-pipeline = { path = "../..", features = ["mock", "tcp"] }
-confidential-ml-transport = { path = "../../../confidential-ml-transport" }
+confidential-ml-pipeline = { path = "../..", default-features = false }
+confidential-ml-transport = { path = "../../../confidential-ml-transport", default-features = false }
+tokio-vsock = { version = "0.7", optional = true }
 async-trait = "0.1"
 bytes = "1.5"
 clap = { version = "4", features = ["derive"] }

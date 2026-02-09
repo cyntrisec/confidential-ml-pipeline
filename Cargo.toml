@@ -18,12 +18,13 @@ async-trait = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 hex = "0.4"
+tokio-vsock = { version = "0.7", optional = true }
 
 [features]
 default = ["mock", "tcp"]
 mock = ["confidential-ml-transport/mock"]
 tcp = ["confidential-ml-transport/tcp"]
-vsock = ["confidential-ml-transport/vsock"]
+vsock = ["confidential-ml-transport/vsock", "dep:tokio-vsock"]
 nitro = ["confidential-ml-transport/nitro"]
 sev-snp = ["confidential-ml-transport/sev-snp"]
 tdx = ["confidential-ml-transport/tdx"]

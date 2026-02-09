@@ -8,6 +8,8 @@ pub mod scheduler;
 pub mod stage;
 #[cfg(feature = "tcp")]
 pub mod tcp;
+#[cfg(feature = "vsock")]
+pub mod vsock;
 
 pub use confidential_ml_transport::RetryPolicy;
 pub use error::{ManifestError, PipelineError, Result, SchedulerError, StageError};

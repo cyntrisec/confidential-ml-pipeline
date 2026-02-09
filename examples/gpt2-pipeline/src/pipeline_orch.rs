@@ -1,25 +1,31 @@
-use std::net::SocketAddr;
 use std::time::Instant;
 
 use bytes::Bytes;
 use clap::Parser;
-use confidential_ml_transport::{DType, MockProvider, MockVerifier, OwnedTensor};
+use confidential_ml_transport::{DType, OwnedTensor};
 use tracing::info;
 
-use confidential_ml_pipeline::tcp;
 use confidential_ml_pipeline::OrchestratorConfig;
 use confidential_ml_pipeline::ShardManifest;
 
+#[cfg(feature = "tcp-mock")]
+use std::net::SocketAddr;
+#[cfg(feature = "tcp-mock")]
+use confidential_ml_transport::{MockProvider, MockVerifier};
+#[cfg(feature = "tcp-mock")]
+use confidential_ml_pipeline::tcp;
+
+#[cfg(feature = "vsock-nitro")]
+use confidential_ml_transport::{NitroProvider, NitroVerifier};
+#[cfg(feature = "vsock-nitro")]
+use confidential_ml_pipeline::vsock;
+
 #[derive(Parser)]
-#[command(name = "pipeline-orch", about = "GPT-2 pipeline orchestrator (TCP)")]
+#[command(name = "pipeline-orch", about = "GPT-2 pipeline orchestrator")]
 struct Args {
     /// Path to the shard manifest JSON file.
     #[arg(long)]
     manifest: String,
-
-    /// Address to listen for the last stage's data_out connection.
-    #[arg(long)]
-    data_out_listen: String,
 
     /// Path to the tokenizer.json file.
     #[arg(long)]
@@ -36,6 +42,16 @@ struct Args {
     /// Output per-token latency stats as JSON to this file.
     #[arg(long)]
     latency_out: Option<String>,
+
+    /// (TCP mode) Address to listen for the last stage's data_out connection.
+    #[cfg(feature = "tcp-mock")]
+    #[arg(long)]
+    data_out_listen: String,
+
+    /// (VSock mode) Port to listen for the last stage's data_out connection.
+    #[cfg(feature = "vsock-nitro")]
+    #[arg(long)]
+    data_out_port: u32,
 }
 
 /// Build a cache-clear sentinel tensor (U32 with shape [0]).
@@ -87,11 +103,8 @@ async fn main() -> anyhow::Result<()> {
     let manifest_json = std::fs::read_to_string(&args.manifest)?;
     let manifest = ShardManifest::from_json(&manifest_json)?;
 
-    let dout_listen: SocketAddr = args.data_out_listen.parse()?;
-
     info!(
         stages = manifest.stages.len(),
-        data_out_listen = %dout_listen,
         prompt = %args.text,
         max_tokens = args.max_tokens,
         "starting GPT-2 orchestrator"
@@ -107,21 +120,52 @@ async fn main() -> anyhow::Result<()> {
 
     info!(prompt_tokens = token_ids.len(), "prompt tokenized");
 
-    let dout_listener = tokio::net::TcpListener::bind(dout_listen).await?;
-    let dout_local = dout_listener.local_addr()?;
-    info!(addr = %dout_local, "data_out listener bound");
+    // Initialize orchestrator with the appropriate transport.
+    #[cfg(feature = "tcp-mock")]
+    let mut orch = {
+        let dout_listen: SocketAddr = args.data_out_listen.parse()?;
+        info!(data_out_listen = %dout_listen, "binding TCP data_out listener");
 
-    let verifier = MockVerifier::new();
-    let provider = MockProvider::new();
+        let dout_listener = tokio::net::TcpListener::bind(dout_listen).await?;
+        let dout_local = dout_listener.local_addr()?;
+        info!(addr = %dout_local, "data_out listener bound");
 
-    let mut orch = tcp::init_orchestrator_tcp(
-        OrchestratorConfig::default(),
-        manifest,
-        dout_listener,
-        &verifier,
-        &provider,
-    )
-    .await?;
+        let verifier = MockVerifier::new();
+        let provider = MockProvider::new();
+
+        tcp::init_orchestrator_tcp(
+            OrchestratorConfig::default(),
+            manifest,
+            dout_listener,
+            &verifier,
+            &provider,
+        )
+        .await?
+    };
+
+    #[cfg(feature = "vsock-nitro")]
+    let mut orch = {
+        use tokio_vsock::{VsockAddr, VsockListener, VMADDR_CID_ANY};
+
+        info!(data_out_port = args.data_out_port, "binding VSock data_out listener");
+
+        let dout_listener =
+            VsockListener::bind(VsockAddr::new(VMADDR_CID_ANY, args.data_out_port))
+                .map_err(|e| anyhow::anyhow!("failed to bind VSock listener: {e}"))?;
+        info!(port = args.data_out_port, "VSock data_out listener bound");
+
+        let verifier = NitroVerifier::new(std::collections::BTreeMap::new())?;
+        let provider = NitroProvider::new()?;
+
+        vsock::init_orchestrator_vsock(
+            OrchestratorConfig::default(),
+            manifest,
+            dout_listener,
+            &verifier,
+            &provider,
+        )
+        .await?
+    };
 
     info!("pipeline initialized, running health check");
     orch.health_check().await?;
