@@ -15,6 +15,11 @@ use confidential_ml_transport::{MockProvider, MockVerifier};
 #[cfg(feature = "tcp-mock")]
 use confidential_ml_pipeline::tcp;
 
+#[cfg(feature = "vsock-mock")]
+use confidential_ml_transport::{MockProvider, MockVerifier};
+#[cfg(feature = "vsock-mock")]
+use confidential_ml_pipeline::vsock;
+
 #[cfg(feature = "vsock-nitro")]
 use confidential_ml_transport::{NitroProvider, NitroVerifier};
 #[cfg(feature = "vsock-nitro")]
@@ -49,7 +54,7 @@ struct Args {
     data_out_listen: String,
 
     /// (VSock mode) Port to listen for the last stage's data_out connection.
-    #[cfg(feature = "vsock-nitro")]
+    #[cfg(any(feature = "vsock-nitro", feature = "vsock-mock"))]
     #[arg(long)]
     data_out_port: u32,
 }
@@ -143,7 +148,7 @@ async fn main() -> anyhow::Result<()> {
         .await?
     };
 
-    #[cfg(feature = "vsock-nitro")]
+    #[cfg(any(feature = "vsock-nitro", feature = "vsock-mock"))]
     let mut orch = {
         use tokio_vsock::{VsockAddr, VsockListener, VMADDR_CID_ANY};
 
@@ -154,8 +159,14 @@ async fn main() -> anyhow::Result<()> {
                 .map_err(|e| anyhow::anyhow!("failed to bind VSock listener: {e}"))?;
         info!(port = args.data_out_port, "VSock data_out listener bound");
 
-        let verifier = NitroVerifier::new(std::collections::BTreeMap::new())?;
-        let provider = NitroProvider::new()?;
+        #[cfg(feature = "vsock-mock")]
+        let (verifier, provider) = (MockVerifier::new(), MockProvider::new());
+
+        #[cfg(feature = "vsock-nitro")]
+        let (verifier, provider) = (
+            NitroVerifier::new(std::collections::BTreeMap::new())?,
+            NitroProvider::new()?,
+        );
 
         vsock::init_orchestrator_vsock(
             OrchestratorConfig::default(),

@@ -14,6 +14,13 @@ path = "src/pipeline_orch.rs"
 [features]
 default = ["tcp-mock"]
 tcp-mock = ["confidential-ml-pipeline/mock", "confidential-ml-pipeline/tcp"]
+vsock-mock = [
+    "confidential-ml-pipeline/vsock",
+    "confidential-ml-pipeline/mock",
+    "confidential-ml-transport/vsock",
+    "confidential-ml-transport/mock",
+    "dep:tokio-vsock",
+]
 vsock-nitro = [
     "confidential-ml-pipeline/vsock",
     "confidential-ml-pipeline/nitro",

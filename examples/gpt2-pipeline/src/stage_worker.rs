@@ -17,6 +17,11 @@ use confidential_ml_transport::{MockProvider, MockVerifier};
 #[cfg(feature = "tcp-mock")]
 use confidential_ml_pipeline::{tcp, ShardManifest};
 
+#[cfg(feature = "vsock-mock")]
+use confidential_ml_transport::{MockProvider, MockVerifier};
+#[cfg(feature = "vsock-mock")]
+use confidential_ml_pipeline::{vsock, ShardManifest};
+
 #[cfg(feature = "vsock-nitro")]
 use confidential_ml_transport::{NitroProvider, NitroVerifier};
 #[cfg(feature = "vsock-nitro")]
@@ -43,12 +48,12 @@ struct Args {
     data_out_target: String,
 
     /// (VSock mode) CID to connect data_out to.
-    #[cfg(feature = "vsock-nitro")]
+    #[cfg(any(feature = "vsock-nitro", feature = "vsock-mock"))]
     #[arg(long)]
     data_out_cid: u32,
 
     /// (VSock mode) Port to connect data_out to.
-    #[cfg(feature = "vsock-nitro")]
+    #[cfg(any(feature = "vsock-nitro", feature = "vsock-mock"))]
     #[arg(long)]
     data_out_port: u32,
 }
@@ -104,7 +109,7 @@ async fn main() -> anyhow::Result<()> {
         .await?;
     }
 
-    #[cfg(feature = "vsock-nitro")]
+    #[cfg(any(feature = "vsock-nitro", feature = "vsock-mock"))]
     {
         let (_, ctrl_port) = vsock::resolve_vsock(&stage_spec.endpoint.control)?;
         let (_, din_port) = vsock::resolve_vsock(&stage_spec.endpoint.data_in)?;
@@ -123,8 +128,14 @@ async fn main() -> anyhow::Result<()> {
 
         info!(ctrl_port, data_in_port = din_port, "VSock listeners ready");
 
-        let provider = NitroProvider::new()?;
-        let verifier = NitroVerifier::new(std::collections::BTreeMap::new())?;
+        #[cfg(feature = "vsock-mock")]
+        let (provider, verifier) = (MockProvider::new(), MockVerifier::new());
+
+        #[cfg(feature = "vsock-nitro")]
+        let (provider, verifier) = (
+            NitroProvider::new()?,
+            NitroVerifier::new(std::collections::BTreeMap::new())?,
+        );
 
         vsock::run_stage_with_listeners_vsock(
             Gpt2StageExecutor::new(PathBuf::from(&args.model_dir)),
