@@ -176,24 +176,32 @@ async fn main() -> anyhow::Result<()> {
 
     println!();
 
-    // Print latency summary
+    // Print latency summary — percentiles over generation tokens only (excluding prompt).
     if !latencies_ms.is_empty() {
-        let mut sorted = latencies_ms.clone();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        let p50 = sorted[sorted.len() / 2];
-        let p95 = sorted[(sorted.len() as f64 * 0.95) as usize];
         let prompt_ms = latencies_ms[0];
-        let gen_avg: f64 = if latencies_ms.len() > 1 {
-            latencies_ms[1..].iter().sum::<f64>() / (latencies_ms.len() - 1) as f64
+        let gen_latencies: Vec<f64> = latencies_ms[1..].to_vec();
+        let gen_count = gen_latencies.len();
+        let gen_avg = if gen_count > 0 {
+            gen_latencies.iter().sum::<f64>() / gen_count as f64
         } else {
             0.0
         };
+        let (p50, p95) = if gen_count > 0 {
+            let mut sorted = gen_latencies.clone();
+            sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            let p50 = sorted[sorted.len() / 2];
+            let p95_idx = ((sorted.len() as f64 * 0.95).ceil() as usize).saturating_sub(1).min(sorted.len() - 1);
+            let p95 = sorted[p95_idx];
+            (p50, p95)
+        } else {
+            (0.0, 0.0)
+        };
         eprintln!();
         eprintln!("--- Latency Summary ---");
-        eprintln!("  Prompt (first token):  {prompt_ms:.1}ms");
+        eprintln!("  Prompt (TTFT):         {prompt_ms:.1}ms");
         eprintln!("  Generation avg:        {gen_avg:.1}ms/token");
-        eprintln!("  p50:                   {p50:.1}ms");
-        eprintln!("  p95:                   {p95:.1}ms");
+        eprintln!("  Generation p50:        {p50:.1}ms");
+        eprintln!("  Generation p95:        {p95:.1}ms");
         eprintln!("  Tokens generated:      {}", latencies_ms.len());
     }
 

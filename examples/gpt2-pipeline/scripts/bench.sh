@@ -73,24 +73,24 @@ run_bench 2 "$EXAMPLE_DIR/manifests/manifest_2stage.json" "127.0.0.1:9021" "/tmp
 echo "Running 3-stage benchmark..."
 run_bench 3 "$EXAMPLE_DIR/manifests/manifest_3stage.json" "127.0.0.1:9031" "/tmp/bench_3stage.json"
 
-# Parse results
+# Parse results — percentiles computed over generation tokens only (excluding prompt).
 parse_latencies() {
     local file="$1"
     python3 -c "
-import json, sys
+import json, math
 d = json.load(open('$file'))
 lats = d['latencies_ms']
-lats_sorted = sorted(lats)
-n = len(lats)
 prompt = lats[0]
-gen = lats[1:] if n > 1 else []
-gen_avg = sum(gen) / len(gen) if gen else 0
-p50 = lats_sorted[n // 2]
-p95_idx = min(int(n * 0.95), n - 1)
-p95 = lats_sorted[p95_idx]
-p99_idx = min(int(n * 0.99), n - 1)
-p99 = lats_sorted[p99_idx]
-print(f'{prompt:.1f}|{gen_avg:.1f}|{p50:.1f}|{p95:.1f}|{p99:.1f}')
+gen = sorted(lats[1:]) if len(lats) > 1 else []
+n = len(gen)
+if n == 0:
+    print(f'{prompt:.1f}|0.0|0.0|0.0|0.0')
+else:
+    gen_avg = sum(gen) / n
+    p50 = gen[n // 2]
+    p95 = gen[min(math.ceil(n * 0.95) - 1, n - 1)]
+    p99 = gen[min(math.ceil(n * 0.99) - 1, n - 1)]
+    print(f'{prompt:.1f}|{gen_avg:.1f}|{p50:.1f}|{p95:.1f}|{p99:.1f}')
 "
 }
 
