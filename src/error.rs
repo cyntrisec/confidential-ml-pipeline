@@ -17,6 +17,8 @@ pub enum ManifestError {
     },
     #[error("stages cover {covered} layers but total_layers is {total}")]
     LayerCountMismatch { covered: usize, total: usize },
+    #[error("first stage must start at layer 0, but starts at {start}")]
+    LayerStartNotZero { start: usize },
     #[error("stage {stage_idx} has wrong stage_idx field: {actual}")]
     WrongStageIndex { stage_idx: usize, actual: usize },
     #[error("JSON error: {0}")]

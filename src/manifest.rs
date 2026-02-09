@@ -112,13 +112,18 @@ impl ShardManifest {
             }
         }
 
+        // Layers must start at 0.
+        if self.stages[0].layer_start != 0 {
+            return Err(ManifestError::LayerStartNotZero {
+                start: self.stages[0].layer_start,
+            });
+        }
+
         // Check total coverage.
-        let first_start = self.stages[0].layer_start;
         let last_end = self.stages.last().unwrap().layer_end;
-        let covered = last_end - first_start;
-        if covered != self.total_layers {
+        if last_end != self.total_layers {
             return Err(ManifestError::LayerCountMismatch {
-                covered,
+                covered: last_end,
                 total: self.total_layers,
             });
         }
@@ -257,6 +262,21 @@ mod tests {
         assert!(matches!(
             m.validate(),
             Err(ManifestError::LayerCountMismatch { .. })
+        ));
+    }
+
+    #[test]
+    fn layer_start_not_zero() {
+        let mut m = make_manifest(2, 5);
+        // Shift both stages so they start at 10 instead of 0.
+        m.stages[0].layer_start = 10;
+        m.stages[0].layer_end = 15;
+        m.stages[1].layer_start = 15;
+        m.stages[1].layer_end = 20;
+        // Coverage is 10 layers, matching total_layers, but doesn't start at 0.
+        assert!(matches!(
+            m.validate(),
+            Err(ManifestError::LayerStartNotZero { start: 10 })
         ));
     }
 
