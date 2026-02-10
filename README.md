@@ -148,6 +148,8 @@ RUST_LOG=debug cargo test --test tcp_pipeline -- --nocapture
 
 ## Benchmarks
 
+### Synthetic (in-process, mock transport)
+
 ```bash
 cargo bench --bench pipeline_bench
 ```
@@ -161,6 +163,21 @@ cargo bench --bench pipeline_bench
 | Protocol serde (StartRequest roundtrip) | 205 ns serialize, 419 ns deserialize |
 | Health check (2 stages) | 39 µs |
 | Multi micro-batch (2-stage, 16 micro-batches) | 598 µs |
+
+### Nitro Enclave (GPT-2 124M, m6i.2xlarge, N=5)
+
+End-to-end GPT-2 inference across real Nitro Enclaves with encrypted VSock transport (ChaCha20-Poly1305). 5 independent cold-boot runs per configuration. Mean +/- 95% CI (t-distribution, df=4).
+
+| Metric | 1-Stage (12 layers) | 2-Stage (6+6) | 3-Stage (4+4+4) |
+|--------|---------------------|----------------|------------------|
+| TTFT | 92.5 +/- 1.8ms | 97.5 +/- 5.4ms | 107.1 +/- 13.7ms |
+| Gen avg | 41.9 +/- 1.8ms/tok | 44.1 +/- 3.3ms/tok | 50.0 +/- 8.3ms/tok |
+| Gen p50 | 41.9 +/- 1.8ms/tok | 44.1 +/- 3.4ms/tok | 49.9 +/- 8.2ms/tok |
+| Gen p95 | 42.9 +/- 1.9ms/tok | 45.4 +/- 3.6ms/tok | 51.9 +/- 11.0ms/tok |
+| Throughput | 23.9 +/- 1.0 tok/s | 22.7 +/- 1.6 tok/s | 20.3 +/- 2.9 tok/s |
+| Overhead vs 1-stage | -- | +5.2% | +19.2% |
+
+See [`examples/gpt2-pipeline/`](examples/gpt2-pipeline/) for the full example and [`benchmark_results/`](benchmark_results/) for raw data and detailed analysis.
 
 ## License
 
