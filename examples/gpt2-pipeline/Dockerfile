@@ -7,10 +7,14 @@ WORKDIR /build
 COPY confidential-ml-transport/ confidential-ml-transport/
 COPY confidential-ml-pipeline/ confidential-ml-pipeline/
 
-# Build stage-worker with vsock-nitro features (Nitro attestation over real VSock)
+# Build stage-worker with vsock-mock features.
+# Mock attestation is used because the handshake is mutual: both sides must
+# provide attestation, but the host orchestrator has no NSM device. Real Nitro
+# attestation requires an asymmetric handshake mode (future work).
+# Transport encryption (X25519 + ChaCha20-Poly1305) is still fully active.
 RUN cargo build --release --bin stage-worker \
     --manifest-path confidential-ml-pipeline/examples/gpt2-pipeline/Cargo.toml \
-    --no-default-features --features vsock-nitro
+    --no-default-features --features vsock-mock
 
 # Stage 2: Runtime image (minimal)
 FROM ubuntu:22.04

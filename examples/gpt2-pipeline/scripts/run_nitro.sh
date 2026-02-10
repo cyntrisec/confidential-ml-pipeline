@@ -117,10 +117,14 @@ echo "Waiting for enclaves to boot..."
 sleep 5
 
 # 5. Build and run orchestrator on host
+# Build with vsock-mock: mock attestation over real VSock transport.
+# The host has no NSM device so NitroProvider would fail. Transport encryption
+# (X25519 + ChaCha20-Poly1305) is still fully active — only attestation
+# identity is mocked. Matches the enclave-side feature in Dockerfile.
 echo "Building orchestrator (host)..."
 cargo build --release --bin pipeline-orch \
     --manifest-path "$EXAMPLE_DIR/Cargo.toml" \
-    --no-default-features --features vsock-nitro
+    --no-default-features --features vsock-mock
 
 ORCH_BIN="$EXAMPLE_DIR/target/release/pipeline-orch"
 
