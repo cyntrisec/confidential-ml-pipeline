@@ -5,7 +5,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 EXAMPLE_DIR="$(dirname "$SCRIPT_DIR")"
 PIPELINE_DIR="$(dirname "$(dirname "$EXAMPLE_DIR")")"
 
-EIF_PATH="$EXAMPLE_DIR/gpt2-pipeline.eif"
+# Per-stage EIF files (built by build_nitro.sh with --build-arg STAGE_IDX=N)
+EIF_S0="$EXAMPLE_DIR/gpt2-pipeline-s0.eif"
+EIF_S1="$EXAMPLE_DIR/gpt2-pipeline-s1.eif"
 MODEL_DIR="$EXAMPLE_DIR/model"
 TOKENIZER="$MODEL_DIR/tokenizer.json"
 TEXT="${1:-The capital of France is}"
@@ -15,16 +17,19 @@ MAX_TOKENS="${2:-20}"
 CTRL_PORT=5000
 DIN_PORT=5001
 DOUT_PORT=5002
+RELAY_PORT=6001   # host relay for stage 0 → stage 1 data
 
 # Memory per enclave (EIF ~614MB + model ~500MB + runtime headroom)
 ENCLAVE_MEM=3072
 ENCLAVE_CPUS=2
 
-if [ ! -f "$EIF_PATH" ]; then
-    echo "EIF not found at $EIF_PATH"
-    echo "Run scripts/build_nitro.sh first."
-    exit 1
-fi
+for f in "$EIF_S0" "$EIF_S1"; do
+    if [ ! -f "$f" ]; then
+        echo "EIF not found: $f"
+        echo "Run 'scripts/build_nitro.sh 2' first."
+        exit 1
+    fi
+done
 
 ENCLAVE_IDS=()
 
@@ -40,7 +45,7 @@ trap cleanup EXIT
 # 1. Launch enclave 0 (stage 0, layers 0-6)
 echo "Launching enclave 0 (stage 0)..."
 nitro-cli run-enclave \
-    --eif-path "$EIF_PATH" \
+    --eif-path "$EIF_S0" \
     --memory "$ENCLAVE_MEM" \
     --cpu-count "$ENCLAVE_CPUS" \
     --enclave-name gpt2-stage0 >/dev/null
@@ -52,7 +57,7 @@ echo "  Enclave 0: CID=$CID0, ID=$EID0"
 # 2. Launch enclave 1 (stage 1, layers 6-12)
 echo "Launching enclave 1 (stage 1)..."
 nitro-cli run-enclave \
-    --eif-path "$EIF_PATH" \
+    --eif-path "$EIF_S1" \
     --memory "$ENCLAVE_MEM" \
     --cpu-count "$ENCLAVE_CPUS" \
     --enclave-name gpt2-stage1 >/dev/null
@@ -62,7 +67,10 @@ ENCLAVE_IDS+=("$EID1")
 echo "  Enclave 1: CID=$CID1, ID=$EID1"
 
 # 3. Generate manifest with actual CIDs
-#    Host CID is 3 (parent instance)
+#    Host CID is 3 (parent instance).
+#    Stage data_out endpoints route through the host:
+#      stage 0 → host:RELAY_PORT (relay) → stage 1
+#      stage 1 → host:DOUT_PORT  (final output to orchestrator)
 HOST_CID=3
 MANIFEST_FILE=$(mktemp /tmp/manifest_vsock_XXXXXX.json)
 
@@ -81,7 +89,7 @@ cat > "$MANIFEST_FILE" <<EOF
       "endpoint": {
         "control": { "type": "vsock", "cid": $CID0, "port": $CTRL_PORT },
         "data_in": { "type": "vsock", "cid": $CID0, "port": $DIN_PORT },
-        "data_out": { "type": "vsock", "cid": $CID1, "port": $DIN_PORT }
+        "data_out": { "type": "vsock", "cid": $HOST_CID, "port": $RELAY_PORT }
       }
     },
     {
@@ -107,16 +115,11 @@ EOF
 
 echo "Generated manifest: $MANIFEST_FILE"
 
-# 4. Send stage config to each enclave via vsock-proxy or env vars
-#    (nitro-cli doesn't support env vars directly; pass via --enclave-cid args
-#    or use a config endpoint. For now, enclaves read from baked-in manifest
-#    and the init.sh uses env vars set by the run-enclave command.)
-
-# Wait for enclaves to boot
+# Wait for enclaves to boot and load model
 echo "Waiting for enclaves to boot..."
-sleep 5
+sleep 15
 
-# 5. Build and run orchestrator on host
+# 4. Build and run orchestrator on host
 # Build with vsock-mock: mock attestation over real VSock transport.
 # The host has no NSM device so NitroProvider would fail. Transport encryption
 # (X25519 + ChaCha20-Poly1305) is still fully active — only attestation
