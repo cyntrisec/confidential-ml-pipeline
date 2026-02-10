@@ -1,5 +1,7 @@
 # GPT-2 Nitro Enclave Pipeline Benchmark
 
+> Real Nitro multi-stage confidential inference is practical at 2 stages; 3-stage shows higher overhead under host contention.
+
 **Date:** 2026-02-09
 
 ## Environment
@@ -158,6 +160,8 @@ Each configuration run 5 times with independent cold-boot stop/start cycles. Pro
 | 4 | 93.9 / 44.2 | 96.3 / 43.9 | 102.9 / 46.4 |
 | 5 | 92.3 / 41.9 | 105.2 / 48.7 | 126.2 / 61.5 |
 
+Per-run AZ and instance metadata in [Appendix A](#appendix-a-per-run-environment-metadata).
+
 ### Observations
 
 1. **2-stage adds ~5% overhead** vs 1-stage, with tight confidence intervals.
@@ -222,7 +226,7 @@ Output text is **identical** across all three configurations, confirming correct
 - Each run is a fresh cold boot: `aws ec2 stop-instances --force` → `aws ec2 start-instances` → SSH → launch enclaves → run benchmark.
 - Fixed prompt ("The capital of France is"), fixed token count (20), greedy decoding.
 - Instance type: `m6i.2xlarge` (Intel Xeon 8375C, 8 vCPUs, 32 GiB).
-- AZs used: `us-east-1c` (runs 1-13), `us-east-1b` (runs 14-15, due to capacity constraints).
+- AZs used: `us-east-1c` (13 of 15 runs), `us-east-1b` (3stage runs 4-5, due to `InsufficientInstanceCapacity` fallback). See [Appendix A](#appendix-a-per-run-environment-metadata) for per-run detail.
 - Enclave config: 2 vCPUs, 3072 MiB per enclave. Debug mode enabled.
 - 95% CI computed with t-distribution (df=4, t=2.776).
 - Raw per-run latency data in `benchmark_results/stat_bench/`.
@@ -277,3 +281,33 @@ PCR0: 39a8463f258df8e1e81ee18e5f5bdd04571b67066f215187a48c6bc008c09324daf545cdce
 PCR1: 4b4d5b3661b3efc12920900c80e126e4ce783c522de6c02a2a5bf7af3a2b9327b86776f188e4be1c1c404a129dbda493
 PCR2: 93022d97357a6896290edf49903decb4df4c093ead804578cbbfa9687cc22504399c14e53861c56149b0f25da1528a28
 ```
+
+## Appendix A: Per-Run Environment Metadata
+
+All runs used `m6i.2xlarge` (Intel Xeon Platinum 8375C @ 2.90GHz, 8 vCPUs, 32 GiB). Enclave config: 2 vCPUs, 3072 MiB per enclave. Each run is a fresh cold boot (stop/start cycle).
+
+3stage runs 4-5 ran in `us-east-1b` after `InsufficientInstanceCapacity` blocked the original instance in `us-east-1c`. An AMI was created from the stopped instance and launched in the new AZ to preserve identical EIFs and software state.
+
+| Config | Run | AZ | Instance |
+|--------|-----|----|----------|
+| 1stage | 1 | us-east-1c | A |
+| 1stage | 2 | us-east-1c | A |
+| 1stage | 3 | us-east-1c | A |
+| 1stage | 4 | us-east-1c | A |
+| 1stage | 5 | us-east-1c | A |
+| 2stage | 1 | us-east-1c | A |
+| 2stage | 2 | us-east-1c | A |
+| 2stage | 3 | us-east-1c | A |
+| 2stage | 4 | us-east-1c | A |
+| 2stage | 5 | us-east-1c | A |
+| 3stage | 1 | us-east-1c | A |
+| 3stage | 2 | us-east-1c | A |
+| 3stage | 3 | us-east-1c | A |
+| 3stage | 4 | us-east-1b | B |
+| 3stage | 5 | us-east-1b | B |
+
+**Notes:**
+- Instance A and B are both `m6i.2xlarge`. Each run is a fresh stop/start cycle (new IP each boot).
+- Instance B was launched from an AMI snapshot of Instance A after `InsufficientInstanceCapacity` blocked Instance A in `us-east-1c`. Identical EIFs, software, and allocator config.
+- CPU model verified identical (`Intel Xeon Platinum 8375C @ 2.90GHz`) on both instances.
+- 3stage run 5 (the highest-latency outlier at 61.5ms/tok) ran on Instance B in `us-east-1b`. Whether the AZ change contributed to the outlier or it was noisy-neighbor host placement is indeterminate from this data.
