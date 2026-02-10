@@ -16,8 +16,8 @@ CTRL_PORT=5000
 DIN_PORT=5001
 DOUT_PORT=5002
 
-# Memory per enclave (GPT-2 ~500MB model + runtime)
-ENCLAVE_MEM=1024
+# Memory per enclave (EIF ~614MB + model ~500MB + runtime headroom)
+ENCLAVE_MEM=3072
 ENCLAVE_CPUS=2
 
 if [ ! -f "$EIF_PATH" ]; then
@@ -39,25 +39,25 @@ trap cleanup EXIT
 
 # 1. Launch enclave 0 (stage 0, layers 0-6)
 echo "Launching enclave 0 (stage 0)..."
-RESULT0=$(nitro-cli run-enclave \
+nitro-cli run-enclave \
     --eif-path "$EIF_PATH" \
     --memory "$ENCLAVE_MEM" \
     --cpu-count "$ENCLAVE_CPUS" \
-    --enclave-name gpt2-stage0)
-CID0=$(echo "$RESULT0" | jq -r '.EnclaveCID')
-EID0=$(echo "$RESULT0" | jq -r '.EnclaveID')
+    --enclave-name gpt2-stage0 >/dev/null
+CID0=$(nitro-cli describe-enclaves | jq -r '.[] | select(.EnclaveName == "gpt2-stage0") | .EnclaveCID')
+EID0=$(nitro-cli describe-enclaves | jq -r '.[] | select(.EnclaveName == "gpt2-stage0") | .EnclaveID')
 ENCLAVE_IDS+=("$EID0")
 echo "  Enclave 0: CID=$CID0, ID=$EID0"
 
 # 2. Launch enclave 1 (stage 1, layers 6-12)
 echo "Launching enclave 1 (stage 1)..."
-RESULT1=$(nitro-cli run-enclave \
+nitro-cli run-enclave \
     --eif-path "$EIF_PATH" \
     --memory "$ENCLAVE_MEM" \
     --cpu-count "$ENCLAVE_CPUS" \
-    --enclave-name gpt2-stage1)
-CID1=$(echo "$RESULT1" | jq -r '.EnclaveCID')
-EID1=$(echo "$RESULT1" | jq -r '.EnclaveID')
+    --enclave-name gpt2-stage1 >/dev/null
+CID1=$(nitro-cli describe-enclaves | jq -r '.[] | select(.EnclaveName == "gpt2-stage1") | .EnclaveCID')
+EID1=$(nitro-cli describe-enclaves | jq -r '.[] | select(.EnclaveName == "gpt2-stage1") | .EnclaveID')
 ENCLAVE_IDS+=("$EID1")
 echo "  Enclave 1: CID=$CID1, ID=$EID1"
 
