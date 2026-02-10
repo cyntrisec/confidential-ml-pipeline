@@ -1,0 +1,48 @@
+{
+  "platform": {
+    "provider": "Azure",
+    "vm_sku": "Standard_DC4ads_v5",
+    "cpu": "AMD EPYC 7763 (Milan, Family 25h Model 1h) [SEV-SNP masked]",
+    "vcpus": 4,
+    "memory_gib": 16,
+    "security_type": "ConfidentialVM (SEV-SNP)",
+    "kernel": "6.8.0-1044-azure-fde",
+    "region": "eastus",
+    "zone": 2,
+    "date": "2026-02-10"
+  },
+  "config": {
+    "model": "GPT-2 small (124M params, 12 layers)",
+    "hidden_dim": 768,
+    "prompt": "The capital of France is",
+    "max_tokens": 20,
+    "decoding": "greedy",
+    "kv_cache": true,
+    "transport": "TCP mock (encrypted SecureChannel, MockProvider attestation)",
+    "runs_per_config": 5
+  },
+  "1stage": {
+    "description": "All 12 layers in 1 stage",
+    "runs": 5,
+    "ttft_ms": { "mean": 57.1, "std": 2.6 },
+    "gen_avg_ms": { "mean": 26.6, "std": 0.4 },
+    "gen_p50_ms": { "mean": 26.5, "std": 0.5 },
+    "gen_p95_ms": { "mean": 27.7, "std": 0.7 },
+    "gen_p99_ms": { "mean": 27.7, "std": 0.7 },
+    "tokens_per_sec": { "mean": 37.6, "std": 0.6 }
+  },
+  "2stage": {
+    "description": "Layers 0-5 in stage 0, layers 6-11 in stage 1",
+    "runs": 5,
+    "ttft_ms": { "mean": 59.7, "std": 3.0 },
+    "gen_avg_ms": { "mean": 27.7, "std": 1.6 },
+    "gen_p50_ms": { "mean": 27.7, "std": 1.7 },
+    "gen_p95_ms": { "mean": 28.9, "std": 2.1 },
+    "gen_p99_ms": { "mean": 28.9, "std": 2.1 },
+    "tokens_per_sec": { "mean": 36.2, "std": 2.0 }
+  },
+  "overhead_2stage_vs_1stage": {
+    "ms": 1.1,
+    "pct": 4.1
+  }
+}

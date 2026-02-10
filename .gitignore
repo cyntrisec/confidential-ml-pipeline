@@ -1,2 +1,4 @@
 /target
+/.target_codex
 /examples/*/target
+/examples/gpt2-pipeline/model/

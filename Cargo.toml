@@ -32,6 +32,8 @@ tdx = ["confidential-ml-transport/tdx"]
 [dev-dependencies]
 tokio = { version = "1.38", features = ["full", "test-util"] }
 criterion = { version = "0.5", features = ["async_tokio"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+async-trait = "0.1"
 
 [[bench]]
 name = "pipeline_bench"
