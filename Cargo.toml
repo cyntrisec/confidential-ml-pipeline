@@ -27,6 +27,7 @@ tcp = ["confidential-ml-transport/tcp"]
 vsock = ["confidential-ml-transport/vsock", "dep:tokio-vsock"]
 nitro = ["confidential-ml-transport/nitro"]
 sev-snp = ["confidential-ml-transport/sev-snp"]
+azure-sev-snp = ["confidential-ml-transport/azure-sev-snp"]
 tdx = ["confidential-ml-transport/tdx"]
 
 [dev-dependencies]

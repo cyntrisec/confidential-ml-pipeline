@@ -1,0 +1,39 @@
+{
+  "timestamp": "2026-02-10T15:46:00Z",
+  "platform": {
+    "cloud": "Azure",
+    "vm_size": "Standard_DC4ads_v5",
+    "cpu": "AMD EPYC 7763 (Milan, Family 25h Model 1h) [SEV-SNP masked]",
+    "security_type": "ConfidentialVM",
+    "kernel": "6.8.0-1044-azure-fde"
+  },
+  "model": "GPT-2 (117M params)",
+  "pipeline_config": "1-stage, 12 layers",
+  "prompt": "The capital of France is",
+  "max_tokens": 5,
+  "runs": 5,
+  "mock_attestation": {
+    "ttft_ms": [54.1, 54.8, 51.3, 53.6, 57.7],
+    "ttft_avg_ms": 54.3,
+    "ttft_p50_ms": 54.1,
+    "ttft_stddev_ms": 2.3,
+    "gen_avg_ms": 25.1,
+    "handshake_overhead_s": 0.001
+  },
+  "azure_sev_snp_attestation": {
+    "ttft_ms": [48.0, 53.5, 52.1, 51.2, 53.8],
+    "ttft_avg_ms": 51.7,
+    "ttft_p50_ms": 52.1,
+    "ttft_stddev_ms": 2.3,
+    "gen_avg_ms": 24.9,
+    "handshake_overhead_s": 6.4,
+    "handshake_note": "3 channels x ~2s vTPM report delay per direction = ~6.4s total one-time cost"
+  },
+  "overhead": {
+    "ttft_ms": -2.6,
+    "ttft_pct": -4.8,
+    "gen_ms": -0.3,
+    "gen_pct": -1.0,
+    "interpretation": "No statistically significant overhead from real attestation during inference. Negative values are within measurement noise (stddev=2.3ms). Attestation cost is one-time during handshake, not per-token."
+  }
+}

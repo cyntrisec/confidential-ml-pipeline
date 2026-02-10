@@ -27,6 +27,13 @@ use confidential_ml_transport::{NitroProvider, NitroVerifier};
 #[cfg(feature = "vsock-nitro")]
 use confidential_ml_pipeline::{vsock, ShardManifest};
 
+#[cfg(feature = "tcp-azure-sev-snp")]
+use std::net::SocketAddr;
+#[cfg(feature = "tcp-azure-sev-snp")]
+use confidential_ml_transport::{AzureSevSnpProvider, AzureSevSnpVerifier};
+#[cfg(feature = "tcp-azure-sev-snp")]
+use confidential_ml_pipeline::{tcp, ShardManifest};
+
 #[derive(Parser)]
 #[command(name = "stage-worker", about = "GPT-2 pipeline stage worker")]
 struct Args {
@@ -43,7 +50,7 @@ struct Args {
     model_dir: String,
 
     /// (TCP mode) Address to connect data_out to (next stage's data_in or orchestrator's data_out listener).
-    #[cfg(feature = "tcp-mock")]
+    #[cfg(any(feature = "tcp-mock", feature = "tcp-azure-sev-snp"))]
     #[arg(long)]
     data_out_target: String,
 
@@ -96,6 +103,41 @@ async fn main() -> anyhow::Result<()> {
 
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
+
+        tcp::run_stage_with_listeners(
+            Gpt2StageExecutor::new(PathBuf::from(&args.model_dir)),
+            StageConfig::default(),
+            ctrl_lis,
+            din_lis,
+            dout_target,
+            &provider,
+            &verifier,
+        )
+        .await?;
+    }
+
+    #[cfg(feature = "tcp-azure-sev-snp")]
+    {
+        let ctrl_addr: SocketAddr = tcp::resolve_tcp(&stage_spec.endpoint.control)?;
+        let din_addr: SocketAddr = tcp::resolve_tcp(&stage_spec.endpoint.data_in)?;
+        let dout_target: SocketAddr = args.data_out_target.parse()?;
+
+        info!(
+            stage = args.stage_idx,
+            ctrl = %ctrl_addr,
+            data_in = %din_addr,
+            data_out_target = %dout_target,
+            model_dir = %args.model_dir,
+            "starting GPT-2 stage worker (TCP, Azure SEV-SNP)"
+        );
+
+        let (ctrl_lis, ctrl_local, din_lis, din_local) =
+            tcp::bind_stage_listeners(ctrl_addr, din_addr).await?;
+
+        info!(ctrl = %ctrl_local, data_in = %din_local, "listeners ready");
+
+        let provider = AzureSevSnpProvider::new()?;
+        let verifier = AzureSevSnpVerifier::new(None);
 
         tcp::run_stage_with_listeners(
             Gpt2StageExecutor::new(PathBuf::from(&args.model_dir)),

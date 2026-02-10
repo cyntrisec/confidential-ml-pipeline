@@ -25,6 +25,13 @@ use confidential_ml_transport::{NitroProvider, NitroVerifier};
 #[cfg(feature = "vsock-nitro")]
 use confidential_ml_pipeline::vsock;
 
+#[cfg(feature = "tcp-azure-sev-snp")]
+use std::net::SocketAddr;
+#[cfg(feature = "tcp-azure-sev-snp")]
+use confidential_ml_transport::{AzureSevSnpProvider, AzureSevSnpVerifier};
+#[cfg(feature = "tcp-azure-sev-snp")]
+use confidential_ml_pipeline::tcp;
+
 #[derive(Parser)]
 #[command(name = "pipeline-orch", about = "GPT-2 pipeline orchestrator")]
 struct Args {
@@ -49,7 +56,7 @@ struct Args {
     latency_out: Option<String>,
 
     /// (TCP mode) Address to listen for the last stage's data_out connection.
-    #[cfg(feature = "tcp-mock")]
+    #[cfg(any(feature = "tcp-mock", feature = "tcp-azure-sev-snp"))]
     #[arg(long)]
     data_out_listen: String,
 
@@ -133,6 +140,28 @@ async fn main() -> anyhow::Result<()> {
 
         let verifier = MockVerifier::new();
         let provider = MockProvider::new();
+
+        tcp::init_orchestrator_tcp(
+            OrchestratorConfig::default(),
+            manifest,
+            dout_listener,
+            &verifier,
+            &provider,
+        )
+        .await?
+    };
+
+    #[cfg(feature = "tcp-azure-sev-snp")]
+    let mut orch = {
+        let dout_listen: SocketAddr = args.data_out_listen.parse()?;
+        info!(data_out_listen = %dout_listen, "binding TCP data_out listener");
+
+        let dout_listener = tokio::net::TcpListener::bind(dout_listen).await?;
+        let dout_local = dout_listener.local_addr()?;
+        info!(addr = %dout_local, "data_out listener bound");
+
+        let verifier = AzureSevSnpVerifier::new(None);
+        let provider = AzureSevSnpProvider::new()?;
 
         tcp::init_orchestrator_tcp(
             OrchestratorConfig::default(),

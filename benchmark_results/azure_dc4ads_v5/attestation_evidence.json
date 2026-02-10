@@ -1,0 +1,73 @@
+{
+  "timestamp": "2026-02-10T15:14:00Z",
+  "platform": {
+    "cloud": "Azure",
+    "vm_size": "Standard_DC4ads_v5",
+    "location": "eastus",
+    "zone": "2",
+    "vm_id": "602197f0-14c6-4227-83e2-b7a73f4ae320",
+    "os": "Ubuntu 22.04 (Confidential VM)",
+    "kernel": "6.8.0-1044-azure-fde",
+    "security_type": "ConfidentialVM",
+    "secure_boot": true,
+    "vtpm_enabled": true,
+    "cpu_family": "AMD EPYC 7763 (Milan, Family 25h Model 1h) [SEV-SNP masked]"
+  },
+  "attestation": {
+    "method": "Azure vTPM (az-cvm-vtpm)",
+    "reason": "/dev/sev-guest not exposed in Azure vTOM mode; configfs-tsm has no registered driver",
+    "snp_report_version": 3,
+    "vmpl": 0,
+    "signature_algorithm": 1,
+    "measurement": "6a063be9dd79f6371c842e480f8dc3b5c725961344e57130e88c5adf49e8f7f6c79b75a5eb77fc769959f4aeb2f9401e",
+    "report_id": "6eccc75709eb00a5bd438de0580c5405283dee3cf76728605b619e0eaa74b254",
+    "chip_id": "b5a13232f42b4b48f16e96c2b0f3ff1aae056f6d585fb26ae5ec02bf07a9bd86b9d53bee0a270a3bd9081f2f545726c6fb757fd75cd0d88afd1dc2ec77879568",
+    "guest_policy": "0x3001f",
+    "debug_allowed": false,
+    "smt_allowed": true,
+    "migration_allowed": false,
+    "tcb": {
+      "microcode": 219,
+      "snp": 24,
+      "tee": 0,
+      "boot_loader": 4
+    },
+    "id_key_digest": "942fd93ebde6ea7a96efadeafc60f1c6b3d10e703b1dafd7555b92f7f3d32d0e006767648cba5b102af3d65756af4177",
+    "certificate_chain": {
+      "vcek": "SEV-VCEK (ECDSA P-384, AMD Milan)",
+      "ask": "SEV-Milan (RSA, signed by ARK)",
+      "ark": "ARK-Milan (RSA, self-signed root)"
+    }
+  },
+  "handshake": {
+    "report_data_binding": "REPORT_DATA[0..32] = SHA256(VarData JSON including user-data hex)",
+    "user_data_location": "VarData JSON field 'user-data' (hex-encoded pk||nonce)",
+    "handshake_overhead_seconds": 6.4,
+    "vtpm_report_delay_seconds": 3.0,
+    "note": "Each handshake direction takes ~3s due to vTPM report generation delay"
+  },
+  "pipeline_test": {
+    "feature": "tcp-azure-sev-snp",
+    "stages": 1,
+    "model": "GPT-2 (117M params)",
+    "prompt": "The capital of France is",
+    "output": "The capital of France is the capital of the French",
+    "max_tokens": 5,
+    "ttft_ms": 55.4,
+    "generation_avg_ms": 25.1,
+    "generation_p50_ms": 25.1,
+    "generation_p95_ms": 25.5,
+    "attestation_verified": true,
+    "control_channel_document_hash": "41eaad19e362ba48ed57b1bd8a6cb7aa0fb09a8ad4790396ea66372f958e91ae",
+    "data_channel_document_hash": "9a8014e093a7ba266168ed8d007f2a17d6208bed5c11e56021c275f2891b0699"
+  },
+  "security_properties_verified": {
+    "hardware_attestation": true,
+    "measurement_non_zero": true,
+    "measurement_consistent": "6a063be9dd79f6371c842e480f8dc3b5c725961344e57130e88c5adf49e8f7f6c79b75a5eb77fc769959f4aeb2f9401e",
+    "report_data_binding": true,
+    "certificate_chain_present": true,
+    "debug_disabled": true,
+    "migration_disabled": true
+  }
+}
