@@ -107,17 +107,19 @@ Run `bash scripts/bench.sh` to reproduce.
 
 ## Nitro Enclave Deployment
 
-### Benchmarks (m6i.2xlarge, 2-vCPU enclaves)
+### Benchmarks (m6i.2xlarge, 2-vCPU enclaves, N=5)
 
-Greedy decoding, KV-cache enabled, encrypted VSock transport (ChaCha20-Poly1305):
+Greedy decoding, KV-cache enabled, encrypted VSock transport (ChaCha20-Poly1305).
+5 independent runs per config with cold-boot stop/start cycles. Mean +/- 95% CI (t-distribution).
 
 | Metric | 1-stage (12 layers) | 2-stage (6+6 layers) | 3-stage (4+4+4 layers) |
 |--------|---------------------|----------------------|------------------------|
-| TTFT | 91.7ms | 96.6ms | 99.6ms |
-| Generation p50 | 42.0ms/tok | 45.6ms/tok | 45.2ms/tok |
-| Generation p95 | 42.9ms/tok | 46.2ms/tok | 46.2ms/tok |
-| Tokens/sec | 23.8 | 22.0 | 22.1 |
-| Relay overhead | — | +3.5ms/tok (+8%) | +3.2ms/tok (+8%) |
+| TTFT | 92.5 +/- 1.8ms | 97.5 +/- 5.4ms | 107.1 +/- 13.7ms |
+| Gen avg | 41.9 +/- 1.8ms/tok | 44.1 +/- 3.3ms/tok | 50.0 +/- 8.3ms/tok |
+| Gen p50 | 41.9 +/- 1.8ms/tok | 44.1 +/- 3.4ms/tok | 49.9 +/- 8.2ms/tok |
+| Gen p95 | 42.9 +/- 1.9ms/tok | 45.4 +/- 3.6ms/tok | 51.9 +/- 11.0ms/tok |
+| Tokens/sec | 23.9 +/- 1.0 | 22.7 +/- 1.6 | 20.3 +/- 2.9 |
+| Overhead vs 1-stage | — | +5.2% gen avg | +19.2% gen avg |
 
 ### Reproduce (commit `61cb135`)
 

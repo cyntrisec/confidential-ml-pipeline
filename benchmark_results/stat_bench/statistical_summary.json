@@ -1,0 +1,170 @@
+{
+  "1stage": {
+    "ttft": {
+      "mean": 92.52,
+      "stddev": 1.44,
+      "ci95": 1.79,
+      "min": 90.75,
+      "max": 94.05,
+      "n": 5
+    },
+    "gen_avg": {
+      "mean": 41.93,
+      "stddev": 1.45,
+      "ci95": 1.8,
+      "min": 40.3,
+      "max": 44.19,
+      "n": 5
+    },
+    "gen_p50": {
+      "mean": 41.92,
+      "stddev": 1.41,
+      "ci95": 1.75,
+      "min": 40.4,
+      "max": 44.14,
+      "n": 5
+    },
+    "gen_p95": {
+      "mean": 42.94,
+      "stddev": 1.54,
+      "ci95": 1.92,
+      "min": 41.39,
+      "max": 45.25,
+      "n": 5
+    },
+    "tok_s": {
+      "mean": 23.87,
+      "stddev": 0.81,
+      "ci95": 1.01,
+      "min": 22.63,
+      "max": 24.82,
+      "n": 5
+    },
+    "p95_p50_ratio": {
+      "mean": 1.02,
+      "stddev": 0.01,
+      "ci95": 0.01,
+      "min": 1.02,
+      "max": 1.04,
+      "n": 5
+    }
+  },
+  "2stage": {
+    "ttft": {
+      "mean": 97.5,
+      "stddev": 4.38,
+      "ci95": 5.43,
+      "min": 94.35,
+      "max": 105.15,
+      "n": 5
+    },
+    "gen_avg": {
+      "mean": 44.11,
+      "stddev": 2.67,
+      "ci95": 3.31,
+      "min": 42.02,
+      "max": 48.69,
+      "n": 5
+    },
+    "gen_p50": {
+      "mean": 44.13,
+      "stddev": 2.74,
+      "ci95": 3.4,
+      "min": 41.98,
+      "max": 48.83,
+      "n": 5
+    },
+    "gen_p95": {
+      "mean": 45.4,
+      "stddev": 2.87,
+      "ci95": 3.56,
+      "min": 42.77,
+      "max": 49.75,
+      "n": 5
+    },
+    "tok_s": {
+      "mean": 22.74,
+      "stddev": 1.29,
+      "ci95": 1.61,
+      "min": 20.54,
+      "max": 23.8,
+      "n": 5
+    },
+    "p95_p50_ratio": {
+      "mean": 1.03,
+      "stddev": 0.02,
+      "ci95": 0.03,
+      "min": 1.01,
+      "max": 1.07,
+      "n": 5
+    }
+  },
+  "3stage": {
+    "ttft": {
+      "mean": 107.06,
+      "stddev": 10.99,
+      "ci95": 13.65,
+      "min": 99.11,
+      "max": 126.15,
+      "n": 5
+    },
+    "gen_avg": {
+      "mean": 50.0,
+      "stddev": 6.65,
+      "ci95": 8.26,
+      "min": 44.74,
+      "max": 61.49,
+      "n": 5
+    },
+    "gen_p50": {
+      "mean": 49.93,
+      "stddev": 6.62,
+      "ci95": 8.22,
+      "min": 44.78,
+      "max": 61.39,
+      "n": 5
+    },
+    "gen_p95": {
+      "mean": 51.94,
+      "stddev": 8.88,
+      "ci95": 11.02,
+      "min": 45.27,
+      "max": 67.42,
+      "n": 5
+    },
+    "tok_s": {
+      "mean": 20.25,
+      "stddev": 2.36,
+      "ci95": 2.94,
+      "min": 16.26,
+      "max": 22.35,
+      "n": 5
+    },
+    "p95_p50_ratio": {
+      "mean": 1.04,
+      "stddev": 0.04,
+      "ci95": 0.04,
+      "min": 1.01,
+      "max": 1.1,
+      "n": 5
+    }
+  },
+  "methodology": {
+    "runs_per_config": 5,
+    "prompt": "The capital of France is",
+    "max_tokens": 20,
+    "generation_tokens_per_run": 19,
+    "instance_type": "m6i.2xlarge",
+    "cpu": "Intel Xeon Platinum 8375C @ 2.90GHz",
+    "region": "us-east-1",
+    "azs_used": [
+      "us-east-1c",
+      "us-east-1b"
+    ],
+    "enclave_memory_mib": 3072,
+    "enclave_vcpus": 2,
+    "confidence_interval": "95% (t-distribution, df=4)",
+    "stop_start_between_runs": true,
+    "note": "Each run is a fresh cold boot with full stop/start cycle. AZ varied due to capacity constraints."
+  }
+}

@@ -117,24 +117,59 @@
       "tokens_per_second": 22.6
     }
   },
-  "relay_overhead_2stage": {
+  "relay_overhead_2stage_n1": {
     "ttft_delta_ms": 4.9,
     "generation_p50_delta_ms": 3.5,
     "generation_p95_delta_ms": 3.6,
     "throughput_delta_percent": -7.6,
-    "note": "Overhead from two additional VSock hops (stage0->host->stage1) plus inter-stage SecureChannel handshake"
+    "note": "Single-run (N=1) reference. Superseded by statistical benchmark."
   },
-  "relay_overhead_3stage": {
+  "relay_overhead_3stage_n1": {
     "ttft_delta_ms": 7.9,
     "generation_p50_delta_ms": 3.2,
     "generation_p95_delta_ms": 3.3,
     "throughput_delta_percent": -7.1,
-    "note": "3-stage adds modest overhead vs 1-stage (5-8%) and does not scale linearly with hop count; 3-stage performs near 2-stage. Second relay hop adds negligible incremental latency over the first."
+    "note": "Single-run (N=1) reference. Superseded by statistical benchmark."
+  },
+  "statistical_benchmark": {
+    "runs_per_config": 5,
+    "prompt": "The capital of France is",
+    "max_tokens": 20,
+    "generation_tokens_per_run": 19,
+    "confidence_interval": "95% (t-distribution, df=4, t=2.776)",
+    "1stage": {
+      "ttft_ms": {"mean": 92.5, "stddev": 1.4, "ci95": 1.8, "min": 90.8, "max": 94.0},
+      "gen_avg_ms": {"mean": 41.9, "stddev": 1.4, "ci95": 1.8, "min": 40.3, "max": 44.2},
+      "gen_p50_ms": {"mean": 41.9, "stddev": 1.4, "ci95": 1.8, "min": 40.4, "max": 44.1},
+      "gen_p95_ms": {"mean": 42.9, "stddev": 1.5, "ci95": 1.9, "min": 41.4, "max": 45.2},
+      "tok_s": {"mean": 23.9, "stddev": 0.8, "ci95": 1.0, "min": 22.6, "max": 24.8}
+    },
+    "2stage": {
+      "ttft_ms": {"mean": 97.5, "stddev": 4.4, "ci95": 5.4, "min": 94.4, "max": 105.2},
+      "gen_avg_ms": {"mean": 44.1, "stddev": 2.7, "ci95": 3.3, "min": 42.0, "max": 48.7},
+      "gen_p50_ms": {"mean": 44.1, "stddev": 2.7, "ci95": 3.4, "min": 42.0, "max": 48.8},
+      "gen_p95_ms": {"mean": 45.4, "stddev": 2.9, "ci95": 3.6, "min": 42.8, "max": 49.7},
+      "tok_s": {"mean": 22.7, "stddev": 1.3, "ci95": 1.6, "min": 20.5, "max": 23.8},
+      "overhead_vs_1stage": {"gen_avg_pct": 5.2, "ttft_pct": 5.4}
+    },
+    "3stage": {
+      "ttft_ms": {"mean": 107.1, "stddev": 11.0, "ci95": 13.7, "min": 99.1, "max": 126.2},
+      "gen_avg_ms": {"mean": 50.0, "stddev": 6.7, "ci95": 8.3, "min": 44.7, "max": 61.5},
+      "gen_p50_ms": {"mean": 49.9, "stddev": 6.6, "ci95": 8.2, "min": 44.8, "max": 61.4},
+      "gen_p95_ms": {"mean": 51.9, "stddev": 8.9, "ci95": 11.0, "min": 45.3, "max": 67.4},
+      "tok_s": {"mean": 20.3, "stddev": 2.4, "ci95": 2.9, "min": 16.3, "max": 22.4},
+      "overhead_vs_1stage": {"gen_avg_pct": 19.2, "ttft_pct": 15.7}
+    }
   },
   "methodology": {
-    "runs_per_config": 1,
-    "note": "Single run per config. Results are directional, not statistically rigorous. Future: 5-10 reps with mean + stddev.",
+    "statistical_runs": 5,
+    "single_runs": "1 per config per prompt (N=1, reference only)",
     "debug_mode": true,
-    "same_instance_across_configs": false
+    "instance_type": "m6i.2xlarge",
+    "cpu": "Intel Xeon Platinum 8375C @ 2.90GHz",
+    "region": "us-east-1",
+    "azs_used": ["us-east-1c", "us-east-1b"],
+    "stop_start_between_runs": true,
+    "raw_data": "benchmark_results/stat_bench/"
   }
 }
