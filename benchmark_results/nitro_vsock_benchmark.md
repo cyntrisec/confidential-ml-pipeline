@@ -3,6 +3,7 @@
 > Real Nitro multi-stage confidential inference is practical at 2 stages; 3-stage shows higher overhead under host contention.
 
 **Date:** 2026-02-09
+**Provenance commit:** [`47e1d97`](https://github.com/cyntrisec/confidential-ml-pipeline/commit/47e1d97) (scripts verified on real hardware)
 
 ## Environment
 

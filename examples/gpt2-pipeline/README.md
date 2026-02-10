@@ -121,7 +121,7 @@ Greedy decoding, KV-cache enabled, encrypted VSock transport (ChaCha20-Poly1305)
 | Tokens/sec | 23.9 +/- 1.0 | 22.7 +/- 1.6 | 20.3 +/- 2.9 |
 | Overhead vs 1-stage | — | +5.2% gen avg | +19.2% gen avg |
 
-### Reproduce (commit `61cb135`)
+### Reproduce (commit `47e1d97`)
 
 **Prerequisites:** AWS account, `aws` CLI configured, `nitro-cli` on an enclave-enabled instance.
 
@@ -147,58 +147,24 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 source ~/.cargo/env
 git clone https://github.com/cyntrisec/confidential-ml-transport.git ~/cmt
 git clone https://github.com/cyntrisec/confidential-ml-pipeline.git ~/cmp
-cd ~/cmp && git checkout 61cb135
+cd ~/cmp && git checkout 47e1d97
 
-# 4. Download model
-mkdir -p ~/cmp/examples/gpt2-pipeline/model
-cd ~/cmp/examples/gpt2-pipeline/model
-for f in config.json tokenizer.json model.safetensors; do
-  curl -sL "https://huggingface.co/openai-community/gpt2/resolve/main/$f" -o "$f"
-done
+# 4. Download model and build EIFs
+cd ~/cmp/examples/gpt2-pipeline
+bash scripts/download_model.sh
 
 # 5. Build orchestrator (runs on host)
-cd ~/cmp/examples/gpt2-pipeline
 cargo build --release --bin pipeline-orch --no-default-features --features vsock-mock
 
-# 6. Build Docker image + EIF (builds stage-worker inside container)
+# 6. Build per-stage Docker images + EIFs
 mkdir -p ~/workspace
 cp -r ~/cmt ~/workspace/confidential-ml-transport
 cp -r ~/cmp ~/workspace/confidential-ml-pipeline
-cd ~/workspace
-docker build -f confidential-ml-pipeline/examples/gpt2-pipeline/Dockerfile \
-  -t gpt2-pipeline-enclave:latest .
-nitro-cli build-enclave --docker-uri gpt2-pipeline-enclave:latest \
-  --output-file ~/gpt2-pipeline.eif
+cd ~/workspace/confidential-ml-pipeline/examples/gpt2-pipeline
+bash scripts/build_nitro.sh 2
 
-# 7. Launch enclave
-RESULT=$(nitro-cli run-enclave --eif-path ~/gpt2-pipeline.eif \
-  --memory 2560 --cpu-count 2 --enclave-name gpt2-stage0 --debug-mode)
-CID=$(echo "$RESULT" | grep -oP '"EnclaveCID":\s*\K[0-9]+')
-sleep 12  # wait for boot + model load
-
-# 8. Generate manifest and run benchmark
-cat > ~/manifest.json <<EOF
-{
-  "model_name": "gpt2", "model_version": "1.0", "total_layers": 12,
-  "stages": [{
-    "stage_idx": 0, "layer_start": 0, "layer_end": 12,
-    "weight_hashes": [], "expected_measurements": {},
-    "endpoint": {
-      "control": {"type": "vsock", "cid": $CID, "port": 5000},
-      "data_in": {"type": "vsock", "cid": $CID, "port": 5001},
-      "data_out": {"type": "vsock", "cid": 3, "port": 5002}
-    }
-  }],
-  "activation_spec": {"dtype": "F32", "hidden_dim": 768, "max_seq_len": 1024}
-}
-EOF
-
-RUST_LOG=info target/release/pipeline-orch \
-  --manifest ~/manifest.json \
-  --tokenizer model/tokenizer.json \
-  --text "The capital of France is" \
-  --max-tokens 20 \
-  --latency-out ~/latency.json
+# 7. Run 2-stage pipeline
+bash scripts/run_nitro.sh "The capital of France is" 20
 ```
 
 ### Enclave Configuration
@@ -213,12 +179,12 @@ RUST_LOG=info target/release/pipeline-orch \
 | Host OS | Amazon Linux 2023 (kernel 6.1) |
 | Enclave kernel | 4.14.256 (Nitro) |
 
-### Scripts
+### Scripts (verified on m6i.2xlarge, commit `47e1d97`)
 
-| Script | Purpose |
-|--------|---------|
-| `scripts/build_nitro.sh` | Download model, build Docker image, build EIF |
-| `scripts/run_nitro.sh` | Launch 2 enclaves, generate manifest, run orchestrator |
+| Script | Purpose | Status |
+|--------|---------|--------|
+| `scripts/build_nitro.sh` | Build per-stage Docker images + EIFs | Verified |
+| `scripts/run_nitro.sh` | Launch 2 enclaves, generate manifest, run orchestrator | Verified |
 
 ## Notes
 

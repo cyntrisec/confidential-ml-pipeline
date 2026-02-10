@@ -1,6 +1,8 @@
 {
   "benchmark": "GPT-2 124M Nitro Enclave Pipeline (VSock)",
   "date": "2026-02-09",
+  "provenance_commit": "47e1d97",
+  "scripts_verified": true,
   "environment": {
     "instance_type": "m6i.2xlarge",
     "cpu": "Intel Xeon Platinum 8375C @ 2.90GHz (Ice Lake)",
