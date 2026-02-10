@@ -195,7 +195,6 @@ EOF
 
 RUST_LOG=info target/release/pipeline-orch \
   --manifest ~/manifest.json \
-  --data-out-port 5002 \
   --tokenizer model/tokenizer.json \
   --text "The capital of France is" \
   --max-tokens 20 \

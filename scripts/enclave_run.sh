@@ -10,7 +10,7 @@ MAX_TOKENS="$3"
 case "$CONFIG" in
   1stage)
     nitro-cli run-enclave --eif-path ~/gpt2-1stage-s0.eif --memory 2560 --cpu-count 2 --enclave-name gpt2-s0 --debug-mode >/dev/null
-    CID0=$(nitro-cli describe-enclaves | jq -r '.[0].EnclaveCID')
+    CID0=$(nitro-cli describe-enclaves | jq -r '.[] | select(.EnclaveName == "gpt2-s0") | .EnclaveCID')
     echo "CID0=$CID0"
     jq -n --argjson cid0 "$CID0" '{
       model_name: "gpt2", model_version: "1.0", total_layers: 12,
@@ -28,9 +28,8 @@ case "$CONFIG" in
   2stage)
     nitro-cli run-enclave --eif-path ~/gpt2-2stage-s0.eif --memory 2560 --cpu-count 2 --enclave-name gpt2-s0 --debug-mode >/dev/null
     nitro-cli run-enclave --eif-path ~/gpt2-2stage-s1.eif --memory 2560 --cpu-count 2 --enclave-name gpt2-s1 --debug-mode >/dev/null
-    CIDS=$(nitro-cli describe-enclaves | jq -r 'sort_by(.EnclaveName) | .[].EnclaveCID')
-    CID0=$(echo "$CIDS" | sed -n '1p')
-    CID1=$(echo "$CIDS" | sed -n '2p')
+    CID0=$(nitro-cli describe-enclaves | jq -r '.[] | select(.EnclaveName == "gpt2-s0") | .EnclaveCID')
+    CID1=$(nitro-cli describe-enclaves | jq -r '.[] | select(.EnclaveName == "gpt2-s1") | .EnclaveCID')
     echo "CID0=$CID0 CID1=$CID1"
     jq -n --argjson cid0 "$CID0" --argjson cid1 "$CID1" '{
       model_name: "gpt2", model_version: "1.0", total_layers: 12,
@@ -47,10 +46,9 @@ case "$CONFIG" in
     nitro-cli run-enclave --eif-path ~/gpt2-3stage-s0.eif --memory 2560 --cpu-count 2 --enclave-name gpt2-s0 --debug-mode >/dev/null
     nitro-cli run-enclave --eif-path ~/gpt2-3stage-s1.eif --memory 2560 --cpu-count 2 --enclave-name gpt2-s1 --debug-mode >/dev/null
     nitro-cli run-enclave --eif-path ~/gpt2-3stage-s2.eif --memory 2560 --cpu-count 2 --enclave-name gpt2-s2 --debug-mode >/dev/null
-    CIDS=$(nitro-cli describe-enclaves | jq -r 'sort_by(.EnclaveName) | .[].EnclaveCID')
-    CID0=$(echo "$CIDS" | sed -n '1p')
-    CID1=$(echo "$CIDS" | sed -n '2p')
-    CID2=$(echo "$CIDS" | sed -n '3p')
+    CID0=$(nitro-cli describe-enclaves | jq -r '.[] | select(.EnclaveName == "gpt2-s0") | .EnclaveCID')
+    CID1=$(nitro-cli describe-enclaves | jq -r '.[] | select(.EnclaveName == "gpt2-s1") | .EnclaveCID')
+    CID2=$(nitro-cli describe-enclaves | jq -r '.[] | select(.EnclaveName == "gpt2-s2") | .EnclaveCID')
     echo "CID0=$CID0 CID1=$CID1 CID2=$CID2"
     jq -n --argjson cid0 "$CID0" --argjson cid1 "$CID1" --argjson cid2 "$CID2" '{
       model_name: "gpt2", model_version: "1.0", total_layers: 12,

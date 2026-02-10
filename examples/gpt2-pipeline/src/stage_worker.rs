@@ -63,7 +63,16 @@ async fn main() -> anyhow::Result<()> {
     let manifest_json = std::fs::read_to_string(&args.manifest)?;
     let manifest = ShardManifest::from_json(&manifest_json)?;
 
-    let stage_spec = &manifest.stages[args.stage_idx];
+    let stage_spec = manifest
+        .stages
+        .get(args.stage_idx)
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "stage_idx {} out of range (manifest has {} stages)",
+                args.stage_idx,
+                manifest.stages.len()
+            )
+        })?;
 
     #[cfg(feature = "tcp-mock")]
     {

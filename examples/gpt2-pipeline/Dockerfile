@@ -7,10 +7,10 @@ WORKDIR /build
 COPY confidential-ml-transport/ confidential-ml-transport/
 COPY confidential-ml-pipeline/ confidential-ml-pipeline/
 
-# Build stage-worker with vsock-mock features (mock attestation over real VSock)
+# Build stage-worker with vsock-nitro features (Nitro attestation over real VSock)
 RUN cargo build --release --bin stage-worker \
     --manifest-path confidential-ml-pipeline/examples/gpt2-pipeline/Cargo.toml \
-    --no-default-features --features vsock-mock
+    --no-default-features --features vsock-nitro
 
 # Stage 2: Runtime image (minimal)
 FROM ubuntu:22.04

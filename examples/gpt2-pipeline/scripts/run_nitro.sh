@@ -130,7 +130,6 @@ echo "---"
 
 RUST_LOG=info "$ORCH_BIN" \
     --manifest "$MANIFEST_FILE" \
-    --data-out-port "$DOUT_PORT" \
     --tokenizer "$TOKENIZER" \
     --text "$TEXT" \
     --max-tokens "$MAX_TOKENS"
