@@ -18,9 +18,7 @@ use tokio::sync::Mutex;
 use tokio_util::codec::Decoder;
 
 use confidential_ml_transport::frame::codec::FrameCodec;
-use confidential_ml_transport::{
-    DType, Flags, FrameType, MockProvider, MockVerifier, OwnedTensor,
-};
+use confidential_ml_transport::{DType, Flags, FrameType, MockProvider, MockVerifier, OwnedTensor};
 
 use confidential_ml_pipeline::{
     ActivationDType, ActivationSpec, ForwardOutput, Orchestrator, OrchestratorConfig, PortSpec,
@@ -330,7 +328,10 @@ async fn run_pipeline_with_capture() -> RelayCapture {
         .expect("data channels failed");
 
     // Send realistic tensors: input_ids + hidden_states.
-    let input = vec![vec![make_input_ids(), make_activation_tensor("hidden_states")]];
+    let input = vec![vec![
+        make_input_ids(),
+        make_activation_tensor("hidden_states"),
+    ]];
     let result = orch.infer(input, 16).await.expect("inference failed");
 
     // Verify output was received (doubled by both stages → 4x original).
@@ -358,12 +359,9 @@ async fn run_pipeline_with_capture() -> RelayCapture {
 #[tokio::test]
 async fn relay_captures_both_directions() {
     let cap = run_pipeline_with_capture().await;
+    assert!(!cap.fwd.is_empty(), "forward capture should not be empty");
     assert!(
-        cap.fwd.len() > 0,
-        "forward capture should not be empty"
-    );
-    assert!(
-        cap.bwd.len() > 0,
+        !cap.bwd.is_empty(),
         "backward capture should not be empty (handshake response)"
     );
 }
