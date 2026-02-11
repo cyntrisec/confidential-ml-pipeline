@@ -60,7 +60,7 @@ where
 
 /// Start relay links for a linear pipeline of N stages.
 ///
-/// Returns `N - 1` relay handles connecting stage[i].data_out → stage[i+1].data_in.
+/// Returns `N - 1` relay handles connecting `stage[i].data_out` → `stage[i+1].data_in`.
 ///
 /// The `transport_factory` is called with `(upstream_stage_idx, downstream_stage_idx)`
 /// and must return a pair of connected transports (upstream_side, downstream_side).

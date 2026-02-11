@@ -5,17 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2026-02-11
 
 ### Added
 
 - **AMD SEV-SNP feature flag** (`sev-snp`) — forwards to `confidential-ml-transport/sev-snp` for SEV-SNP attestation backends.
 - **Intel TDX feature flag** (`tdx`) — forwards to `confidential-ml-transport/tdx` for TDX attestation backends.
-- CI feature matrix testing 4 feature combinations (`--all-features`, `--no-default-features --features mock,tcp`, `--features mock`, `--features tcp`).
+- CI feature matrix testing 7 feature combinations (expanded from 4).
+- CI doc build check with `-D warnings` to catch broken doc links.
 - `CHANGELOG.md`.
 
 ### Fixed
 
+- **Test files missing feature gates** — added `#![cfg(feature = "mock")]` to all mock-dependent test files and `#![cfg(all(feature = "tcp", feature = "mock"))]` to `tcp_pipeline.rs`, so tests compile under any feature combination.
+- **Broken doc links** — added `Self::` prefix to intra-doc method links in `orchestrator.rs` and `stage.rs`; escaped `[i]` index syntax in `relay.rs`.
 - **`input_tensors.len() as u32` silent truncation** — replaced with `u32::try_from()` to return an explicit error when the micro-batch count exceeds `u32::MAX`.
 - **`StageFailed` hardcoded `stage_idx: 0`** — both `recv_output_tensors` (orchestrator) and `recv_tensors` (stage) now report `stage_idx: usize::MAX` to indicate unknown origin, instead of falsely blaming stage 0.
 - **`rand_request_id()` timestamp collisions** — replaced nanosecond timestamp with an atomic counter seeded from the clock, guaranteeing unique request IDs within a process.
@@ -44,5 +47,5 @@ Initial release.
 - Pluggable `StageExecutor` trait for user-defined forward passes.
 - Mock, TCP, VSock, and Nitro attestation feature flags (forwarded to `confidential-ml-transport`).
 
-[Unreleased]: https://github.com/cyntrisec/confidential-ml-pipeline/compare/v0.1.0...HEAD
+[0.2.0]: https://github.com/cyntrisec/confidential-ml-pipeline/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/cyntrisec/confidential-ml-pipeline/releases/tag/v0.1.0

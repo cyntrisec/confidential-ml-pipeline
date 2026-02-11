@@ -216,8 +216,8 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
 
     /// Establish data channels between stages.
     ///
-    /// This is a convenience method that calls [`send_establish_data_channels`]
-    /// followed by [`complete_data_channels`]. For TCP deployments where data
+    /// This is a convenience method that calls [`Self::send_establish_data_channels`]
+    /// followed by [`Self::complete_data_channels`]. For TCP deployments where data
     /// transports must be connected between the two calls, use them separately.
     ///
     /// - `data_in_transport`: orchestrator connects (initiator) to stage 0's data_in (responder)
@@ -246,7 +246,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
     ///
     /// After this returns, every stage is waiting for its data transports to
     /// connect. The caller should then provide the actual TCP/VSock transports
-    /// and call [`complete_data_channels`].
+    /// and call [`Self::complete_data_channels`].
     pub async fn send_establish_data_channels(&mut self) -> crate::error::Result<()> {
         let num_stages = self.stages.len();
 
@@ -268,7 +268,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
 
     /// Complete data channel establishment after transports have been connected.
     ///
-    /// Must be called after [`send_establish_data_channels`].
+    /// Must be called after [`Self::send_establish_data_channels`].
     pub async fn complete_data_channels(
         &mut self,
         data_in_transport: T,

@@ -17,13 +17,18 @@ jobs:
       matrix:
         features:
           - --all-features
-          - --no-default-features --features mock,tcp
-          - --features mock
-          - --features tcp
+          - --no-default-features
+          - --no-default-features --features mock
+          - --no-default-features --features tcp
+          - --no-default-features --features "tcp,mock"
+          - --no-default-features --features sev-snp
+          - --no-default-features --features tdx
     steps:
       - uses: actions/checkout@v4
       - name: Clone confidential-ml-transport
         run: git clone --depth 1 https://github.com/cyntrisec/confidential-ml-transport.git ../confidential-ml-transport
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Run tests
@@ -36,12 +41,30 @@ jobs:
       - uses: actions/checkout@v4
       - name: Clone confidential-ml-transport
         run: git clone --depth 1 https://github.com/cyntrisec/confidential-ml-transport.git ../confidential-ml-transport
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - name: Run clippy
-        run: cargo clippy --all-features --tests -- -D warnings
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+  doc:
+    name: Doc
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone confidential-ml-transport
+        run: git clone --depth 1 https://github.com/cyntrisec/confidential-ml-transport.git ../confidential-ml-transport
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build docs
+        run: cargo doc --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: -D warnings
 
   fmt:
     name: Format

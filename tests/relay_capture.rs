@@ -1,3 +1,4 @@
+#![cfg(feature = "mock")]
 //! Pipeline inter-stage relay capture test.
 //!
 //! Proves that the host relay between stage 0 and stage 1 sees only

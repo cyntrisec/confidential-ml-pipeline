@@ -1,3 +1,5 @@
+#![cfg(feature = "mock")]
+
 use bytes::Bytes;
 use confidential_ml_transport::frame::tensor::TensorRef;
 use confidential_ml_transport::{DType, MockProvider, MockVerifier, SecureChannel, SessionConfig};

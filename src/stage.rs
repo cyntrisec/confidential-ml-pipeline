@@ -64,8 +64,8 @@ impl<E: StageExecutor> StageRuntime<E> {
 
     /// Run the stage, accepting connections and processing requests until shutdown.
     ///
-    /// This is a convenience method that calls [`run_control_phase`] followed by
-    /// [`run_data_phase`]. For TCP deployments where transports arrive at
+    /// This is a convenience method that calls [`Self::run_control_phase`] followed by
+    /// [`Self::run_data_phase`]. For TCP deployments where transports arrive at
     /// different times, call those two methods separately.
     ///
     /// - `control_transport`: accepted (responder) from orchestrator
@@ -160,7 +160,7 @@ impl<E: StageExecutor> StageRuntime<E> {
 
     /// Phase 2: Establish data channels and run the processing loop.
     ///
-    /// Must be called after [`run_control_phase`] returns. The `control`
+    /// Must be called after [`Self::run_control_phase`] returns. The `control`
     /// channel is the one returned in [`ControlPhaseResult`].
     pub async fn run_data_phase<CT, DI, DO>(
         &self,
