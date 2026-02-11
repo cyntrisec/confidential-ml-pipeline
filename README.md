@@ -182,6 +182,26 @@ End-to-end GPT-2 inference across real Nitro Enclaves with encrypted VSock trans
 | Throughput | 23.9 +/- 1.0 tok/s | 22.7 +/- 1.6 tok/s | 20.3 +/- 2.9 tok/s |
 | Overhead vs 1-stage | -- | +5.2% | +19.2% |
 
+### GCP Cross-VM (GPT-2 124M, c3-standard-4, N=5)
+
+End-to-end GPT-2 inference across separate GCP VMs with encrypted TCP transport (ChaCha20-Poly1305, mock attestation). Compute-normalized: 4 vCPU total budget (1-stage = 4 cores, 2-stage = 2+2 cores via `taskset`). 5 independent runs per configuration. Mean +/- 95% CI (t-distribution, df=4).
+
+| Metric | Standard 1-Stage | Standard 2-Stage | TDX 1-Stage | TDX 2-Stage |
+|--------|-----------------|-----------------|-------------|-------------|
+| TTFT | 70.1 +/- 0.8ms | 75.5 +/- 1.2ms | 97.7 +/- 2.5ms | 89.4 +/- 0.7ms |
+| Gen avg | 42.3 +/- 0.5ms/tok | 41.3 +/- 0.4ms/tok | 48.6 +/- 0.5ms/tok | 47.8 +/- 1.5ms/tok |
+| Gen p50 | 42.3 +/- 0.5ms/tok | 41.3 +/- 0.4ms/tok | 48.6 +/- 0.5ms/tok | 47.7 +/- 1.4ms/tok |
+| Gen p95 | 43.4 +/- 1.1ms/tok | 42.0 +/- 0.3ms/tok | 49.6 +/- 0.4ms/tok | 48.9 +/- 1.7ms/tok |
+| Throughput | 23.6 +/- 0.3 tok/s | 24.2 +/- 0.2 tok/s | 20.6 +/- 0.2 tok/s | 20.9 +/- 0.6 tok/s |
+| Cost/1M tokens | $3.25 | $5.58 | $3.73 | $6.46 |
+| Transport overhead | -- | within CI | -- | within CI |
+| TDX overhead | -- | -- | +14.9% | +15.7% |
+
+**Key findings:**
+- On c3-standard-4, enabling TDX increased GPT-2 generation latency by ~15% (1-stage and 2-stage).
+- Pipeline transport overhead remained within CI (no measurable additional penalty from cross-VM encrypted relay).
+- Primary cost is confidential-memory compute overhead, not transport.
+
 See [`examples/gpt2-pipeline/`](examples/gpt2-pipeline/) for the full example and [`benchmark_results/`](benchmark_results/) for raw data and detailed analysis.
 
 ## License

@@ -1,0 +1,134 @@
+{
+  "1stage": {
+    "ttft_ms": {
+      "mean": 97.7,
+      "std": 2.0,
+      "ci95": 2.5
+    },
+    "gen_avg_ms": {
+      "mean": 48.6,
+      "std": 0.4,
+      "ci95": 0.5
+    },
+    "gen_p50_ms": {
+      "mean": 48.6,
+      "std": 0.4,
+      "ci95": 0.5
+    },
+    "gen_p95_ms": {
+      "mean": 49.4,
+      "std": 0.3,
+      "ci95": 0.4
+    },
+    "gen_p99_ms": {
+      "mean": 49.4,
+      "std": 0.3,
+      "ci95": 0.4
+    },
+    "tokens_per_sec": {
+      "mean": 20.6,
+      "std": 0.2,
+      "ci95": 0.2
+    },
+    "runs": 5
+  },
+  "2stage": {
+    "ttft_ms": {
+      "mean": 89.4,
+      "std": 0.5,
+      "ci95": 0.7
+    },
+    "gen_avg_ms": {
+      "mean": 47.8,
+      "std": 1.2,
+      "ci95": 1.5
+    },
+    "gen_p50_ms": {
+      "mean": 47.3,
+      "std": 0.5,
+      "ci95": 0.6
+    },
+    "gen_p95_ms": {
+      "mean": 56.7,
+      "std": 16.5,
+      "ci95": 20.5
+    },
+    "gen_p99_ms": {
+      "mean": 56.7,
+      "std": 16.5,
+      "ci95": 20.5
+    },
+    "tokens_per_sec": {
+      "mean": 20.9,
+      "std": 0.5,
+      "ci95": 0.6
+    },
+    "runs": 5
+  },
+  "transport_overhead": {
+    "raw_delta_ms": -0.8,
+    "raw_delta_pct": -1.6
+  },
+  "tdx_overhead_vs_standard": {
+    "standard_1stage_gen_avg_ms": 42.3,
+    "tdx_1stage_gen_avg_ms": 48.6,
+    "delta_1stage_ms": 6.3,
+    "delta_1stage_pct": 14.9,
+    "standard_2stage_gen_avg_ms": 41.3,
+    "tdx_2stage_gen_avg_ms": 47.8,
+    "delta_2stage_ms": 6.5,
+    "delta_2stage_pct": 15.7
+  },
+  "normalization": "4 vCPU total budget: 1-stage=4cores, 2-stage=2+2cores (taskset -c 0,1)",
+  "cost_analysis": {
+    "standard_1stage": {
+      "vms": "1x c3-standard-4 + 1x e2-standard-2",
+      "cost_per_hour": 0.2765,
+      "tokens_per_sec": 23.6,
+      "cost_per_1m_tokens": 3.25
+    },
+    "standard_2stage": {
+      "vms": "2x c3-standard-4 + 1x e2-standard-2",
+      "cost_per_hour": 0.4859,
+      "tokens_per_sec": 24.2,
+      "cost_per_1m_tokens": 5.58
+    },
+    "tdx_1stage": {
+      "vms": "1x c3-standard-4 TDX + 1x e2-standard-2",
+      "cost_per_hour": 0.2765,
+      "tokens_per_sec": 20.6,
+      "cost_per_1m_tokens": 3.73
+    },
+    "tdx_2stage": {
+      "vms": "2x c3-standard-4 TDX + 1x e2-standard-2",
+      "cost_per_hour": 0.4859,
+      "tokens_per_sec": 20.9,
+      "cost_per_1m_tokens": 6.46
+    },
+    "formula": "cost_per_hour / (tokens_per_sec * 3600) * 1_000_000",
+    "note": "on-demand pricing, us-central1, Feb 2026"
+  },
+  "platform": {
+    "cpu_model": "Intel(R) Xeon(R) Platinum 8481C CPU @ 2.70GHz",
+    "kernel": "6.14.0-1021-gcp",
+    "machine_type": "c3-standard-4",
+    "zone": "us-central1-a",
+    "confidential_compute": "TDX",
+    "feature": "tcp-mock",
+    "normalization": "4 vCPU total budget: 1-stage=4cores, 2-stage=2+2cores (taskset -c 0,1)",
+    "n_runs": 5,
+    "max_tokens": 20,
+    "prompt": "The capital of France is",
+    "commit": "dfce445",
+    "timestamp": "2026-02-11T21:30:00Z",
+    "stage0_ip": "10.128.0.10",
+    "stage1_ip": "10.128.0.11",
+    "orch_ip": "10.128.0.12",
+    "cross_vm_rtt": "rtt min/avg/max/mdev = 0.169/0.309/0.784/0.237 ms",
+    "cost_per_hour": {
+      "c3_standard_4": 0.2094,
+      "e2_standard_2": 0.0671,
+      "note": "on-demand, us-central1; stages=c3-standard-4 TDX, orch=e2-standard-2"
+    }
+  }
+}
