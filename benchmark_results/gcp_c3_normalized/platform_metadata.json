@@ -1,0 +1,22 @@
+{
+  "cpu_model": "Intel(R) Xeon(R) Platinum 8481C CPU @ 2.70GHz",
+  "kernel": "6.14.0-1021-gcp",
+  "machine_type": "c3-standard-4",
+  "zone": "us-central1-a",
+  "feature": "tcp-mock",
+  "normalization": "4 vCPU total budget: 1-stage=4cores, 2-stage=2+2cores (taskset -c 0,1)",
+  "n_runs": 5,
+  "max_tokens": 20,
+  "prompt": "The capital of France is",
+  "commit": "dfce445",
+  "timestamp": "2026-02-11T16:50:49Z",
+  "cross_vm_rtt": "rtt min/avg/max/mdev = 0.112/0.173/0.550/0.125 ms",
+  "stage0_ip": "10.128.0.9",
+  "stage1_ip": "10.128.0.8",
+  "orch_ip": "10.128.0.7",
+  "cost_per_hour": {
+    "c3_standard_4": 0.2094,
+    "e2_standard_2": 0.0671,
+    "note": "on-demand, us-central1"
+  }
+}

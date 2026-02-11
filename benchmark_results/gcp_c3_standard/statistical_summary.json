@@ -1,0 +1,89 @@
+{
+  "1stage": {
+    "runs": 5,
+    "ttft_ms": {
+      "mean": 73.3,
+      "std": 2.7,
+      "ci95": 3.3
+    },
+    "gen_avg_ms": {
+      "mean": 44.3,
+      "std": 1.9,
+      "ci95": 2.4
+    },
+    "gen_p50_ms": {
+      "mean": 44.3,
+      "std": 1.9,
+      "ci95": 2.4
+    },
+    "gen_p95_ms": {
+      "mean": 45.2,
+      "std": 1.8,
+      "ci95": 2.2
+    },
+    "gen_p99_ms": {
+      "mean": 45.2,
+      "std": 1.8,
+      "ci95": 2.2
+    },
+    "tokens_per_sec": {
+      "mean": 22.6,
+      "std": 0.9,
+      "ci95": 1.2
+    }
+  },
+  "2stage": {
+    "runs": 5,
+    "ttft_ms": {
+      "mean": 72.4,
+      "std": 0.6,
+      "ci95": 0.7
+    },
+    "gen_avg_ms": {
+      "mean": 42.3,
+      "std": 0.3,
+      "ci95": 0.3
+    },
+    "gen_p50_ms": {
+      "mean": 42.3,
+      "std": 0.3,
+      "ci95": 0.3
+    },
+    "gen_p95_ms": {
+      "mean": 43.2,
+      "std": 0.4,
+      "ci95": 0.5
+    },
+    "gen_p99_ms": {
+      "mean": 43.2,
+      "std": 0.4,
+      "ci95": 0.5
+    },
+    "tokens_per_sec": {
+      "mean": 23.6,
+      "std": 0.1,
+      "ci95": 0.2
+    }
+  },
+  "overhead_2stage_vs_1stage": {
+    "ms": -2.0,
+    "pct": -4.5
+  },
+  "platform": {
+    "cpu_model": "Intel(R) Xeon(R) Platinum 8481C CPU @ 2.70GHz",
+    "kernel": "6.14.0-1021-gcp",
+    "machine_type": "c3-standard-4",
+    "zone": "us-central1-a",
+    "tdx_flag": "none",
+    "feature": "tcp-mock",
+    "n_runs": 5,
+    "max_tokens": 20,
+    "prompt": "The capital of France is",
+    "commit": "dfce445",
+    "timestamp": "2026-02-11T16:02:24Z",
+    "cross_vm_rtt_avg_ms": 0.225,
+    "stage0_ip": "10.128.0.4",
+    "stage1_ip": "10.128.0.5",
+    "orch_ip": "10.128.0.6"
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "1stage": {
+    "ttft_ms": {
+      "mean": 70.1,
+      "std": 0.6,
+      "ci95": 0.8
+    },
+    "gen_avg_ms": {
+      "mean": 42.3,
+      "std": 0.4,
+      "ci95": 0.5
+    },
+    "gen_p50_ms": {
+      "mean": 42.3,
+      "std": 0.4,
+      "ci95": 0.5
+    },
+    "gen_p95_ms": {
+      "mean": 43.4,
+      "std": 0.8,
+      "ci95": 1.1
+    },
+    "gen_p99_ms": {
+      "mean": 43.4,
+      "std": 0.8,
+      "ci95": 1.1
+    },
+    "tokens_per_sec": {
+      "mean": 23.6,
+      "std": 0.2,
+      "ci95": 0.3
+    },
+    "runs": 5
+  },
+  "2stage": {
+    "ttft_ms": {
+      "mean": 75.5,
+      "std": 1.0,
+      "ci95": 1.2
+    },
+    "gen_avg_ms": {
+      "mean": 41.3,
+      "std": 0.3,
+      "ci95": 0.4
+    },
+    "gen_p50_ms": {
+      "mean": 41.3,
+      "std": 0.3,
+      "ci95": 0.4
+    },
+    "gen_p95_ms": {
+      "mean": 42.0,
+      "std": 0.3,
+      "ci95": 0.3
+    },
+    "gen_p99_ms": {
+      "mean": 42.0,
+      "std": 0.3,
+      "ci95": 0.3
+    },
+    "tokens_per_sec": {
+      "mean": 24.2,
+      "std": 0.2,
+      "ci95": 0.2
+    },
+    "runs": 5
+  },
+  "transport_overhead": {
+    "raw_delta_ms": -1.0,
+    "raw_delta_pct": -2.4,
+    "interpretation": "No measurable transport penalty (2-stage delta within CI)"
+  },
+  "cost_analysis": {
+    "1stage": {
+      "vms": "1x c3-standard-4 + 1x e2-standard-2",
+      "cost_per_hour_usd": 0.2765,
+      "tokens_per_sec": 23.6,
+      "tokens_per_hour": 84960,
+      "cost_per_1M_tokens_usd": 3.25
+    },
+    "2stage": {
+      "vms": "2x c3-standard-4 + 1x e2-standard-2",
+      "cost_per_hour_usd": 0.4859,
+      "tokens_per_sec": 24.2,
+      "tokens_per_hour": 87120,
+      "cost_per_1M_tokens_usd": 5.58
+    },
+    "cost_overhead_2stage_pct": 71.4
+  },
+  "platform": {
+    "cpu_model": "Intel(R) Xeon(R) Platinum 8481C CPU @ 2.70GHz",
+    "kernel": "6.14.0-1021-gcp",
+    "machine_type": "c3-standard-4",
+    "zone": "us-central1-a",
+    "feature": "tcp-mock",
+    "normalization": "4 vCPU total budget: 1-stage=4cores, 2-stage=2+2cores (taskset -c 0,1)",
+    "n_runs": 5,
+    "max_tokens": 20,
+    "prompt": "The capital of France is",
+    "commit": "dfce445",
+    "timestamp": "2026-02-11T16:50:49Z",
+    "cross_vm_rtt": "rtt min/avg/max/mdev = 0.112/0.173/0.550/0.125 ms",
+    "stage0_ip": "10.128.0.9",
+    "stage1_ip": "10.128.0.8",
+    "orch_ip": "10.128.0.7",
+    "cost_per_hour": {
+      "c3_standard_4": 0.2094,
+      "e2_standard_2": 0.0671,
+      "note": "on-demand, us-central1"
+    }
+  }
+}

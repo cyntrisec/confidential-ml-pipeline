@@ -22,9 +22,15 @@ vsock-mock = [
     "dep:tokio-vsock",
 ]
 tcp-azure-sev-snp = [
-    "confidential-ml-pipeline/azure-sev-snp",
+    "confidential-ml-pipeline/sev-snp",
     "confidential-ml-pipeline/tcp",
     "confidential-ml-transport/azure-sev-snp",
+    "confidential-ml-transport/tcp",
+]
+tcp-tdx = [
+    "confidential-ml-pipeline/tdx",
+    "confidential-ml-pipeline/tcp",
+    "confidential-ml-transport/tdx",
     "confidential-ml-transport/tcp",
 ]
 vsock-nitro = [

@@ -101,10 +101,11 @@ echo ""
 echo "All runs complete. Generating summary..."
 
 # Generate statistical summary
+export RESULTS_DIR N_RUNS
 python3 << 'PYEOF'
 import json, math, os, sys
 
-results_dir = os.environ.get("RESULTS_DIR", sys.argv[1] if len(sys.argv) > 1 else ".")
+results_dir = os.environ.get("RESULTS_DIR", ".")
 n_runs = int(os.environ.get("N_RUNS", "5"))
 
 def percentile(data, p):
@@ -201,7 +202,8 @@ print(f"| Gen p99 | {s1['gen_p99_ms']['mean']} ± {s1['gen_p99_ms']['std']}ms/to
 print(f"| Tokens/sec | {s1['tokens_per_sec']['mean']} ± {s1['tokens_per_sec']['std']} | {s2['tokens_per_sec']['mean']} ± {s2['tokens_per_sec']['std']} |")
 if "overhead_2stage_vs_1stage" in summary:
     o = summary["overhead_2stage_vs_1stage"]
-    print(f"| **2-stage overhead** | — | **+{o['ms']}ms ({o['pct']}%)** |")
+    sign = "+" if o['ms'] >= 0 else ""
+    print(f"| **2-stage overhead** | — | **{sign}{o['ms']}ms ({sign}{o['pct']}%)** |")
 print()
 print(f"**Config:** GPT-2 small (124M), KV-cache, greedy, TCP mock, N={n_runs} runs")
 PYEOF

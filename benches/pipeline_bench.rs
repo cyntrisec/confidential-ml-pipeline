@@ -228,7 +228,7 @@ fn bench_pipeline_throughput(c: &mut Criterion) {
     for &size in &[64, 1024, 16384, 131072] {
         group.throughput(Throughput::Bytes(size as u64));
         group.bench_with_input(
-            BenchmarkId::new("2stage_1mb", format!("{size}B")),
+            BenchmarkId::new("2stage", format!("{size}B")),
             &size,
             |b, &size| {
                 // Setup pipeline once per benchmark group iteration.

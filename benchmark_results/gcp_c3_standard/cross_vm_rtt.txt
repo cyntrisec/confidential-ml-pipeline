@@ -1,0 +1,12 @@
+  cmt-stage0 -> cmt-stage1 (10.128.0.5):
+PING 10.128.0.5 (10.128.0.5) 56(84) bytes of data.
+
+--- 10.128.0.5 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 4135ms
+rtt min/avg/max/mdev = 0.133/0.240/0.661/0.210 ms
+  cmt-stage1 -> cmt-stage0 (10.128.0.4):
+PING 10.128.0.4 (10.128.0.4) 56(84) bytes of data.
+
+--- 10.128.0.4 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 4081ms
+rtt min/avg/max/mdev = 0.132/0.226/0.564/0.169 ms
