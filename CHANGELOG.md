@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-02-12
+
+### Added
+
+- **GCP cross-VM benchmarks** — end-to-end GPT-2 pipeline across separate GCP c3-standard-4 VMs with encrypted TCP transport. Standard VMs, TDX VMs (mock attestation), and TDX VMs with real TDX attestation (configfs-tsm). 5 runs per configuration, statistical 95% CI.
+- **Real TDX attestation benchmarks** — Phase 3 results showing ~4ms one-time attestation overhead, no per-token impact. TDX compute overhead ~15% vs standard VMs.
+- **`tcp-tdx` feature** in GPT-2 pipeline example for real TDX attestation deployment.
+- GCP benchmark scripts (`run_gcp.sh`, `bench_gcp.sh`, `cleanup_gcp.sh`).
+
 ## [0.2.0] - 2026-02-11
 
 ### Added
@@ -47,5 +56,6 @@ Initial release.
 - Pluggable `StageExecutor` trait for user-defined forward passes.
 - Mock, TCP, VSock, and Nitro attestation feature flags (forwarded to `confidential-ml-transport`).
 
+[0.2.1]: https://github.com/cyntrisec/confidential-ml-pipeline/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/cyntrisec/confidential-ml-pipeline/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/cyntrisec/confidential-ml-pipeline/releases/tag/v0.1.0
