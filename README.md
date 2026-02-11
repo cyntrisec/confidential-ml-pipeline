@@ -197,10 +197,23 @@ End-to-end GPT-2 inference across separate GCP VMs with encrypted TCP transport 
 | Transport overhead | -- | within CI | -- | within CI |
 | TDX overhead | -- | -- | +14.9% | +15.7% |
 
+### Real TDX Attestation (GPT-2 124M, c3-standard-4 TDX, N=5)
+
+Same hardware as TDX columns above, but using real TDX quotes (configfs-tsm) instead of mock attestation. Isolates the one-time attestation handshake cost.
+
+| Metric | TDX Mock (Phase 2) | TDX Real Attestation (Phase 3) | Delta |
+|--------|-------------------|-------------------------------|-------|
+| TTFT | 97.7 +/- 2.5ms | 101.6 +/- 3.8ms | +3.9ms (+4.0%) |
+| Gen avg | 48.6 +/- 0.5ms/tok | 49.7 +/- 0.2ms/tok | +1.1ms (within CI) |
+| Gen p50 | 48.6 +/- 0.5ms/tok | 49.7 +/- 0.3ms/tok | within CI |
+| Gen p95 | 49.6 +/- 0.4ms/tok | 50.7 +/- 0.6ms/tok | within CI |
+| Throughput | 20.6 +/- 0.2 tok/s | 20.1 +/- 0.1 tok/s | within CI |
+
 **Key findings:**
-- On c3-standard-4, enabling TDX increased GPT-2 generation latency by ~15% (1-stage and 2-stage).
-- Pipeline transport overhead remained within CI (no measurable additional penalty from cross-VM encrypted relay).
-- Primary cost is confidential-memory compute overhead, not transport.
+- TDX compute overhead: ~15% vs standard VMs (memory encryption, not transport).
+- Real TDX attestation adds ~4ms one-time handshake cost, amortized over the session.
+- Per-token generation latency is unchanged by attestation (within CI).
+- No measurable transport bottleneck from cross-VM encrypted relay.
 
 See [`examples/gpt2-pipeline/`](examples/gpt2-pipeline/) for the full example and [`benchmark_results/`](benchmark_results/) for raw data and detailed analysis.
 

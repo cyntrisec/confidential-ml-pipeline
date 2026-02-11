@@ -1,0 +1,59 @@
+{
+  "1stage_tdx_attested": {
+    "ttft_ms": {
+      "mean": 101.6,
+      "std": 3.1,
+      "ci95": 3.8
+    },
+    "gen_avg_ms": {
+      "mean": 49.7,
+      "std": 0.2,
+      "ci95": 0.2
+    },
+    "gen_p50_ms": {
+      "mean": 49.7,
+      "std": 0.2,
+      "ci95": 0.3
+    },
+    "gen_p95_ms": {
+      "mean": 50.7,
+      "std": 0.5,
+      "ci95": 0.6
+    },
+    "tokens_per_sec": {
+      "mean": 20.1,
+      "std": 0.1,
+      "ci95": 0.1
+    },
+    "runs": 5
+  },
+  "attestation_overhead_vs_mock": {
+    "mock_ttft_ms": 97.7,
+    "attested_ttft_ms": 101.6,
+    "delta_ttft_ms": 3.9,
+    "delta_ttft_pct": 4.0,
+    "mock_gen_avg_ms": 48.6,
+    "attested_gen_avg_ms": 49.7,
+    "delta_gen_avg_ms": 1.1,
+    "delta_gen_avg_pct": 2.3,
+    "note": "Phase 2 mock baseline on identical TDX hardware"
+  },
+  "platform": {
+    "cpu_model": "Intel Sapphire Rapids (Family 6, Model 143, Stepping 8) [TDX masked as 'InteTD X   l']",
+    "kernel": "6.14.0-1021-gcp",
+    "machine_type": "c3-standard-4",
+    "zone": "us-central1-a",
+    "confidential_compute": "TDX",
+    "feature": "tcp-tdx",
+    "attestation": "real TDX quotes via configfs-tsm",
+    "normalization": "1-stage only, 4 vCPU unconstrained",
+    "n_runs": 5,
+    "max_tokens": 20,
+    "prompt": "The capital of France is",
+    "pipeline_commit": "b0b5620",
+    "transport_commit": "821cbad",
+    "timestamp": "2026-02-11T22:21:05Z",
+    "stage0_ip": "10.128.0.13",
+    "orch_ip": "10.128.0.14"
+  }
+}

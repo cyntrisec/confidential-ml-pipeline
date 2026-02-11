@@ -1,0 +1,5 @@
+PING 10.128.0.14 (10.128.0.14) 56(84) bytes of data.
+
+--- 10.128.0.14 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 4114ms
+rtt min/avg/max/mdev = 0.179/0.368/0.608/0.144 ms
