@@ -1,5 +1,10 @@
 # confidential-ml-pipeline
 
+[![Crates.io](https://img.shields.io/crates/v/confidential-ml-pipeline.svg)](https://crates.io/crates/confidential-ml-pipeline)
+[![docs.rs](https://docs.rs/confidential-ml-pipeline/badge.svg)](https://docs.rs/confidential-ml-pipeline)
+[![CI](https://github.com/cyntrisec/confidential-ml-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/cyntrisec/confidential-ml-pipeline/actions/workflows/ci.yml)
+[![License: MIT/Apache-2.0](https://img.shields.io/crates/l/confidential-ml-pipeline.svg)](LICENSE-MIT)
+
 Multi-enclave pipeline orchestration for confidential ML inference.
 
 > **Disclaimer:** This project is under development. All source code and features are not production ready.
