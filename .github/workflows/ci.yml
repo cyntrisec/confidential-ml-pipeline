@@ -23,12 +23,13 @@ jobs:
           - --no-default-features --features "tcp,mock"
           - --no-default-features --features sev-snp
           - --no-default-features --features tdx
+          - --no-default-features --features azure-sev-snp
     steps:
       - uses: actions/checkout@v4
       - name: Clone confidential-ml-transport
         run: git clone --depth 1 https://github.com/cyntrisec/confidential-ml-transport.git ../confidential-ml-transport
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libssl-dev
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev libtss2-dev
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Run tests
@@ -42,7 +43,7 @@ jobs:
       - name: Clone confidential-ml-transport
         run: git clone --depth 1 https://github.com/cyntrisec/confidential-ml-transport.git ../confidential-ml-transport
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libssl-dev
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev libtss2-dev
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
@@ -58,7 +59,7 @@ jobs:
       - name: Clone confidential-ml-transport
         run: git clone --depth 1 https://github.com/cyntrisec/confidential-ml-transport.git ../confidential-ml-transport
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libssl-dev
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev libtss2-dev
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Build docs
