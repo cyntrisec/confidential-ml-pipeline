@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use confidential_ml_transport::{
-    AttestationVerifier, Message, OwnedTensor, SecureChannel, SessionConfig,
+    AttestationProvider, AttestationVerifier, Message, OwnedTensor, SecureChannel, SessionConfig,
 };
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{debug, info, warn};
@@ -136,6 +136,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
     pub async fn init(
         &mut self,
         control_transports: Vec<T>,
+        provider: &dyn AttestationProvider,
         verifier: &dyn AttestationVerifier,
     ) -> crate::error::Result<()> {
         let num_stages = self.manifest.stages.len();
@@ -164,7 +165,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
             }
 
             let channel =
-                SecureChannel::connect_with_attestation(transport, verifier, session_config)
+                SecureChannel::connect_with_attestation(transport, provider, verifier, session_config)
                     .await
                     .map_err(PipelineError::Transport)?;
 
@@ -210,6 +211,24 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
             }
         }
 
+        #[cfg(any(
+            feature = "nitro",
+            feature = "sev-snp",
+            feature = "tdx",
+            feature = "azure-sev-snp"
+        ))]
+        {
+            let has_any = self
+                .manifest
+                .stages
+                .iter()
+                .any(|s| !s.expected_measurements.is_empty());
+            if !has_any {
+                warn!("no expected_measurements configured for any stage — \
+                       attestation will not verify enclave identity");
+            }
+        }
+
         info!("orchestrator: all stages initialized");
         Ok(())
     }
@@ -228,16 +247,16 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
         data_in_transport: T,
         data_out_transport: T,
         relay_handles: Vec<RelayHandle>,
+        provider: &dyn AttestationProvider,
         verifier: &dyn AttestationVerifier,
-        provider: &dyn confidential_ml_transport::AttestationProvider,
     ) -> crate::error::Result<()> {
         self.send_establish_data_channels().await?;
         self.complete_data_channels(
             data_in_transport,
             data_out_transport,
             relay_handles,
-            verifier,
             provider,
+            verifier,
         )
         .await
     }
@@ -274,28 +293,62 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
         data_in_transport: T,
         data_out_transport: T,
         relay_handles: Vec<RelayHandle>,
+        provider: &dyn AttestationProvider,
         verifier: &dyn AttestationVerifier,
-        provider: &dyn confidential_ml_transport::AttestationProvider,
     ) -> crate::error::Result<()> {
         self.relay_handles = relay_handles;
 
         // Connect data_in to stage 0 (orchestrator = initiator, stage 0 = responder).
+        // Apply stage 0's measurements so the data channel verifies the same
+        // enclave identity as the control channel.
+        let mut data_in_config = self.config.session_config.clone();
+        if !self.manifest.stages[0].expected_measurements.is_empty() {
+            data_in_config.expected_measurements = Some(
+                self.manifest.stages[0]
+                    .to_expected_measurements()
+                    .map_err(|e| {
+                        PipelineError::Protocol(format!(
+                            "invalid measurements for stage 0 data_in: {e}"
+                        ))
+                    })?,
+            );
+        }
         self.data_in = Some(
             SecureChannel::connect_with_attestation(
                 data_in_transport,
+                provider,
                 verifier,
-                self.config.session_config.clone(),
+                data_in_config,
             )
             .await
             .map_err(PipelineError::Transport)?,
         );
 
         // Accept data_out from last stage (last stage = initiator, orchestrator = responder).
+        // Apply last stage's measurements for verification once mutual attestation
+        // is enabled (currently the responder role does not verify the initiator).
+        let last_idx = self.manifest.stages.len() - 1;
+        let mut data_out_config = self.config.session_config.clone();
+        if !self.manifest.stages[last_idx]
+            .expected_measurements
+            .is_empty()
+        {
+            data_out_config.expected_measurements = Some(
+                self.manifest.stages[last_idx]
+                    .to_expected_measurements()
+                    .map_err(|e| {
+                        PipelineError::Protocol(format!(
+                            "invalid measurements for stage {last_idx} data_out: {e}"
+                        ))
+                    })?,
+            );
+        }
         self.data_out = Some(
             SecureChannel::accept_with_attestation(
                 data_out_transport,
                 provider,
-                self.config.session_config.clone(),
+                verifier,
+                data_out_config,
             )
             .await
             .map_err(PipelineError::Transport)?,

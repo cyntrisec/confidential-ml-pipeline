@@ -1,6 +1,6 @@
 [package]
 name = "confidential-ml-pipeline"
-version = "0.2.2"
+version = "0.3.0"
 edition = "2021"
 description = "Multi-enclave pipeline orchestration for confidential ML inference"
 license = "MIT OR Apache-2.0"
@@ -9,7 +9,7 @@ keywords = ["tee", "confidential", "ml", "pipeline", "encryption"]
 categories = ["cryptography", "network-programming"]
 
 [dependencies]
-confidential-ml-transport = { version = "0.3", path = "../confidential-ml-transport", default-features = false }
+confidential-ml-transport = { version = "0.4", path = "../confidential-ml-transport", default-features = false }
 bytes = "1.5"
 tokio = { version = "1.38", features = ["net", "io-util", "sync", "macros", "rt", "time"] }
 thiserror = "2"

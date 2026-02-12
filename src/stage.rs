@@ -86,7 +86,7 @@ impl<E: StageExecutor> StageRuntime<E> {
         DI: AsyncRead + AsyncWrite + Unpin + Send,
         DO: AsyncRead + AsyncWrite + Unpin + Send,
     {
-        let result = self.run_control_phase(control_transport, provider).await?;
+        let result = self.run_control_phase(control_transport, provider, verifier).await?;
         self.run_data_phase(
             result.control,
             data_in_transport,
@@ -106,14 +106,16 @@ impl<E: StageExecutor> StageRuntime<E> {
         &mut self,
         control_transport: CT,
         provider: &dyn AttestationProvider,
+        verifier: &dyn AttestationVerifier,
     ) -> crate::error::Result<ControlPhaseResult<CT>>
     where
         CT: AsyncRead + AsyncWrite + Unpin + Send,
     {
-        // Accept control channel (responder).
+        // Accept control channel (responder with mutual attestation).
         let mut control = SecureChannel::accept_with_attestation(
             control_transport,
             provider,
+            verifier,
             self.config.session_config.clone(),
         )
         .await
@@ -133,6 +135,43 @@ impl<E: StageExecutor> StageRuntime<E> {
             .init(&stage_spec)
             .await
             .map_err(PipelineError::Stage)?;
+
+        // Verify weight hashes if declared in the manifest.
+        if !stage_spec.weight_hashes.is_empty() {
+            let actual = self.executor.weight_hashes();
+            if actual.len() != stage_spec.weight_hashes.len() {
+                return Err(PipelineError::StageFailed {
+                    stage_idx: stage_spec.stage_idx,
+                    reason: format!(
+                        "weight hash count mismatch: manifest declares {} hashes, \
+                         executor returned {}",
+                        stage_spec.weight_hashes.len(),
+                        actual.len()
+                    ),
+                });
+            }
+            for (i, (expected, got)) in stage_spec
+                .weight_hashes
+                .iter()
+                .zip(actual.iter())
+                .enumerate()
+            {
+                if expected != got {
+                    return Err(PipelineError::StageFailed {
+                        stage_idx: stage_spec.stage_idx,
+                        reason: format!(
+                            "weight hash mismatch at index {i}: \
+                             expected {expected}, got {got}"
+                        ),
+                    });
+                }
+            }
+            info!(
+                stage = stage_spec.stage_idx,
+                "weight hashes verified ({} hashes)",
+                actual.len()
+            );
+        }
 
         // Send Ready.
         control
@@ -175,11 +214,29 @@ impl<E: StageExecutor> StageRuntime<E> {
         DI: AsyncRead + AsyncWrite + Unpin + Send,
         DO: AsyncRead + AsyncWrite + Unpin + Send,
     {
+        // Build data channel config with this stage's measurements applied.
+        let data_session_config = {
+            let mut cfg = self.config.session_config.clone();
+            if let Some(ref spec) = self.stage_spec {
+                if !spec.expected_measurements.is_empty() {
+                    cfg.expected_measurements =
+                        Some(spec.to_expected_measurements().map_err(|e| {
+                            PipelineError::Protocol(format!(
+                                "invalid measurements for stage {} data channels: {e}",
+                                self.stage_idx
+                            ))
+                        })?);
+                }
+            }
+            cfg
+        };
+
         // Accept data_in (responder — upstream initiates or orchestrator initiates).
         let mut data_in = SecureChannel::accept_with_attestation(
             data_in_transport,
             provider,
-            self.config.session_config.clone(),
+            verifier,
+            data_session_config.clone(),
         )
         .await
         .map_err(PipelineError::Transport)?;
@@ -187,8 +244,9 @@ impl<E: StageExecutor> StageRuntime<E> {
         // Initiate data_out (initiator — this stage connects to downstream acceptor).
         let mut data_out = SecureChannel::connect_with_attestation(
             data_out_transport,
+            provider,
             verifier,
-            self.config.session_config.clone(),
+            data_session_config,
         )
         .await
         .map_err(PipelineError::Transport)?;

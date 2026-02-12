@@ -140,10 +140,10 @@ async fn setup_slow_pipeline_with_config(
     });
 
     let mut orch = Orchestrator::new(config, manifest).unwrap();
-    orch.init(vec![orch_ctrl0, orch_ctrl1], &verifier)
+    orch.init(vec![orch_ctrl0, orch_ctrl1], &provider, &verifier)
         .await
         .unwrap();
-    orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &verifier, &provider)
+    orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &provider, &verifier)
         .await
         .unwrap();
 

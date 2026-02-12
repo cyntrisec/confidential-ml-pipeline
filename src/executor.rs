@@ -22,6 +22,15 @@ pub trait StageExecutor: Send + Sync {
     /// Initialize the executor with its stage specification (load weights, etc.).
     async fn init(&mut self, stage_spec: &StageSpec) -> std::result::Result<(), StageError>;
 
+    /// Return SHA-256 hashes (hex-encoded) of loaded model weights.
+    ///
+    /// Called after [`init`](Self::init) to verify weight integrity against
+    /// the manifest's `weight_hashes`. Default returns an empty vec, which
+    /// will fail verification if the manifest declares any weight hashes.
+    fn weight_hashes(&self) -> Vec<String> {
+        Vec::new()
+    }
+
     /// Run a forward pass on one micro-batch of input tensors.
     ///
     /// - `request_id`: identifies the inference request.

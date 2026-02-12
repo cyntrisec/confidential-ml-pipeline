@@ -101,7 +101,7 @@ pub async fn run_stage_with_listeners<E: StageExecutor>(
 
     // 2. Control phase.
     let mut runtime = StageRuntime::new(executor, config);
-    let result = runtime.run_control_phase(ctrl_stream, provider).await?;
+    let result = runtime.run_control_phase(ctrl_stream, provider, verifier).await?;
 
     // 3. Concurrently accept data_in and connect data_out.
     let (din_result, dout_result) = tokio::try_join!(
@@ -151,7 +151,7 @@ pub async fn init_orchestrator_tcp(
 
     // 2. Init.
     let mut orch = Orchestrator::new(config, manifest)?;
-    orch.init(ctrl_streams, verifier).await?;
+    orch.init(ctrl_streams, provider, verifier).await?;
 
     // 3. Send EstablishDataChannels.
     orch.send_establish_data_channels().await?;
@@ -165,7 +165,7 @@ pub async fn init_orchestrator_tcp(
     )?;
 
     // 5. Complete data channels.
-    orch.complete_data_channels(din_stream, dout_stream, vec![], verifier, provider)
+    orch.complete_data_channels(din_stream, dout_stream, vec![], provider, verifier)
         .await?;
 
     Ok(orch)

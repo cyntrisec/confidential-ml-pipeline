@@ -139,12 +139,12 @@ async fn two_stage_identity_pipeline() {
     let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
 
     // Phase 1: Init.
-    orch.init(vec![orch_ctrl0, orch_ctrl1], &verifier)
+    orch.init(vec![orch_ctrl0, orch_ctrl1], &provider, &verifier)
         .await
         .expect("orchestrator init failed");
 
     // Phase 2: Establish data channels.
-    orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &verifier, &provider)
+    orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &provider, &verifier)
         .await
         .expect("data channels failed");
 
@@ -213,10 +213,10 @@ async fn two_stage_two_micro_batches() {
     });
 
     let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
-    orch.init(vec![orch_ctrl0, orch_ctrl1], &verifier)
+    orch.init(vec![orch_ctrl0, orch_ctrl1], &provider, &verifier)
         .await
         .unwrap();
-    orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &verifier, &provider)
+    orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &provider, &verifier)
         .await
         .unwrap();
 
@@ -278,10 +278,10 @@ async fn sequential_inference_ten_requests() {
     });
 
     let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
-    orch.init(vec![orch_ctrl0, orch_ctrl1], &verifier)
+    orch.init(vec![orch_ctrl0, orch_ctrl1], &provider, &verifier)
         .await
         .unwrap();
-    orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &verifier, &provider)
+    orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &provider, &verifier)
         .await
         .unwrap();
 
@@ -371,10 +371,10 @@ async fn three_stage_identity_pipeline() {
     });
 
     let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
-    orch.init(vec![orch_ctrl0, orch_ctrl1, orch_ctrl2], &verifier)
+    orch.init(vec![orch_ctrl0, orch_ctrl1, orch_ctrl2], &provider, &verifier)
         .await
         .unwrap();
-    orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &verifier, &provider)
+    orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &provider, &verifier)
         .await
         .unwrap();
 

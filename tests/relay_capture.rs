@@ -320,11 +320,11 @@ async fn run_pipeline_with_capture() -> RelayCapture {
     // Run orchestrator.
     let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
 
-    orch.init(vec![orch_ctrl0, orch_ctrl1], &verifier)
+    orch.init(vec![orch_ctrl0, orch_ctrl1], &provider, &verifier)
         .await
         .expect("orchestrator init failed");
 
-    orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &verifier, &provider)
+    orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &provider, &verifier)
         .await
         .expect("data channels failed");
 

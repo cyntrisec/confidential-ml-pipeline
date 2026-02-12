@@ -101,8 +101,8 @@ async fn stage_failure_returns_request_error() {
     let provider = MockProvider::new();
     let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
 
-    orch.init(vec![orch_ctrl0], &verifier).await.unwrap();
-    orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &verifier, &provider)
+    orch.init(vec![orch_ctrl0], &provider, &verifier).await.unwrap();
+    orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &provider, &verifier)
         .await
         .unwrap();
 

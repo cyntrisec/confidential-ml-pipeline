@@ -22,9 +22,11 @@ async fn secure_channel_through_relay() {
     // Responder side (accepts).
     let responder = tokio::spawn(async move {
         let provider = MockProvider::new();
+        let verifier = MockVerifier::new();
         let mut channel = SecureChannel::accept_with_attestation(
             responder_transport,
             &provider,
+            &verifier,
             SessionConfig::default(),
         )
         .await
@@ -52,9 +54,11 @@ async fn secure_channel_through_relay() {
 
     // Initiator side (connects).
     let initiator = tokio::spawn(async move {
+        let provider = MockProvider::new();
         let verifier = MockVerifier::new();
         let mut channel = SecureChannel::connect_with_attestation(
             initiator_transport,
+            &provider,
             &verifier,
             SessionConfig::default(),
         )

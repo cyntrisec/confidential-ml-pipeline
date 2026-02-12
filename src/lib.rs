@@ -1,3 +1,18 @@
+#[cfg(all(
+    feature = "mock",
+    any(
+        feature = "nitro",
+        feature = "sev-snp",
+        feature = "tdx",
+        feature = "azure-sev-snp"
+    )
+))]
+compile_error!(
+    "Feature `mock` cannot be combined with production attestation features \
+     (nitro, sev-snp, tdx, azure-sev-snp). Use `--no-default-features` and \
+     select only production features for release builds."
+);
+
 pub mod error;
 pub mod executor;
 pub mod manifest;
