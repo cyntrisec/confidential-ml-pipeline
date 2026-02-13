@@ -39,3 +39,4 @@ async-trait = "0.1"
 [[bench]]
 name = "pipeline_bench"
 harness = false
+required-features = ["mock"]
