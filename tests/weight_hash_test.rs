@@ -84,9 +84,7 @@ async fn weight_hashes_match_passes() {
     let stage_handle = tokio::spawn(async move {
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
-        let executor = HashableExecutor {
-            hashes: vec![hash],
-        };
+        let executor = HashableExecutor { hashes: vec![hash] };
         let mut runtime = StageRuntime::new(executor, StageConfig::default());
         runtime
             .run(
@@ -101,7 +99,9 @@ async fn weight_hashes_match_passes() {
     });
 
     let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
-    orch.init(vec![orch_ctrl], &provider, &verifier).await.unwrap();
+    orch.init(vec![orch_ctrl], &provider, &verifier)
+        .await
+        .unwrap();
     orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &provider, &verifier)
         .await
         .unwrap();
@@ -136,7 +136,9 @@ async fn weight_hashes_mismatch_fails() {
             hashes: vec!["wrong_hash".to_string()],
         };
         let mut runtime = StageRuntime::new(executor, StageConfig::default());
-        let result = runtime.run_control_phase(stage_ctrl, &provider, &verifier).await;
+        let result = runtime
+            .run_control_phase(stage_ctrl, &provider, &verifier)
+            .await;
         assert!(result.is_err(), "stage should fail with mismatched hashes");
         let err = result.err().unwrap().to_string();
         assert!(
@@ -146,8 +148,7 @@ async fn weight_hashes_mismatch_fails() {
     });
 
     // Orchestrator init will fail because stage errors out.
-    let mut orch =
-        Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
+    let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
     let result = orch.init(vec![orch_ctrl], &provider, &verifier).await;
     // This should fail because the stage side closes the channel.
     assert!(result.is_err());
@@ -172,7 +173,9 @@ async fn weight_hashes_count_mismatch_fails() {
             hashes: vec!["h1".into()], // only 1 hash, manifest expects 2
         };
         let mut runtime = StageRuntime::new(executor, StageConfig::default());
-        let result = runtime.run_control_phase(stage_ctrl, &provider, &verifier).await;
+        let result = runtime
+            .run_control_phase(stage_ctrl, &provider, &verifier)
+            .await;
         assert!(result.is_err(), "stage should fail with count mismatch");
         let err = result.err().unwrap().to_string();
         assert!(
@@ -181,8 +184,7 @@ async fn weight_hashes_count_mismatch_fails() {
         );
     });
 
-    let mut orch =
-        Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
+    let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
     let result = orch.init(vec![orch_ctrl], &provider, &verifier).await;
     assert!(result.is_err());
 
@@ -220,7 +222,9 @@ async fn empty_weight_hashes_skips_verification() {
     });
 
     let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
-    orch.init(vec![orch_ctrl], &provider, &verifier).await.unwrap();
+    orch.init(vec![orch_ctrl], &provider, &verifier)
+        .await
+        .unwrap();
     orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &provider, &verifier)
         .await
         .unwrap();

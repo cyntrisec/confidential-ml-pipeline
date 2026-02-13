@@ -101,7 +101,9 @@ pub async fn run_stage_with_listeners<E: StageExecutor>(
 
     // 2. Control phase.
     let mut runtime = StageRuntime::new(executor, config);
-    let result = runtime.run_control_phase(ctrl_stream, provider, verifier).await?;
+    let result = runtime
+        .run_control_phase(ctrl_stream, provider, verifier)
+        .await?;
 
     // 3. Concurrently accept data_in and connect data_out.
     let (din_result, dout_result) = tokio::try_join!(

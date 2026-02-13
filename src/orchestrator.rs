@@ -164,10 +164,14 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
                 session_config.expected_measurements = Some(measurements);
             }
 
-            let channel =
-                SecureChannel::connect_with_attestation(transport, provider, verifier, session_config)
-                    .await
-                    .map_err(PipelineError::Transport)?;
+            let channel = SecureChannel::connect_with_attestation(
+                transport,
+                provider,
+                verifier,
+                session_config,
+            )
+            .await
+            .map_err(PipelineError::Transport)?;
 
             info!(stage = i, "orchestrator: control channel established");
             self.stages.push(StageHandle {
@@ -224,8 +228,10 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
                 .iter()
                 .any(|s| !s.expected_measurements.is_empty());
             if !has_any {
-                warn!("no expected_measurements configured for any stage — \
-                       attestation will not verify enclave identity");
+                warn!(
+                    "no expected_measurements configured for any stage — \
+                       attestation will not verify enclave identity"
+                );
             }
         }
 

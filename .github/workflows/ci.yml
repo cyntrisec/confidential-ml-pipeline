@@ -16,7 +16,6 @@ jobs:
     strategy:
       matrix:
         features:
-          - --all-features
           - --no-default-features
           - --no-default-features --features mock
           - --no-default-features --features tcp
@@ -24,6 +23,9 @@ jobs:
           - --no-default-features --features sev-snp
           - --no-default-features --features tdx
           - --no-default-features --features azure-sev-snp
+          - --no-default-features --features "tcp,sev-snp"
+          - --no-default-features --features "tcp,tdx"
+          - --no-default-features --features "tcp,azure-sev-snp"
     steps:
       - uses: actions/checkout@v4
       - name: Clone confidential-ml-transport
@@ -48,8 +50,10 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Run clippy (mock+tcp)
+        run: cargo clippy --all-targets --no-default-features --features "tcp,mock" -- -D warnings
+      - name: Run clippy (production)
+        run: cargo clippy --all-targets --no-default-features --features "tcp,sev-snp,tdx,azure-sev-snp" -- -D warnings
 
   doc:
     name: Doc
@@ -62,8 +66,12 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libssl-dev libtss2-dev
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Build docs
-        run: cargo doc --no-deps --all-features
+      - name: Build docs (mock+tcp)
+        run: cargo doc --no-deps --no-default-features --features "tcp,mock"
+        env:
+          RUSTDOCFLAGS: -D warnings
+      - name: Build docs (production)
+        run: cargo doc --no-deps --no-default-features --features "tcp,sev-snp,tdx,azure-sev-snp"
         env:
           RUSTDOCFLAGS: -D warnings
 

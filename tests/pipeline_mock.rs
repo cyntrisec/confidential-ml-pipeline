@@ -371,9 +371,13 @@ async fn three_stage_identity_pipeline() {
     });
 
     let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
-    orch.init(vec![orch_ctrl0, orch_ctrl1, orch_ctrl2], &provider, &verifier)
-        .await
-        .unwrap();
+    orch.init(
+        vec![orch_ctrl0, orch_ctrl1, orch_ctrl2],
+        &provider,
+        &verifier,
+    )
+    .await
+    .unwrap();
     orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &provider, &verifier)
         .await
         .unwrap();

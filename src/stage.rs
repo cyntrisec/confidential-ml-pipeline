@@ -86,7 +86,9 @@ impl<E: StageExecutor> StageRuntime<E> {
         DI: AsyncRead + AsyncWrite + Unpin + Send,
         DO: AsyncRead + AsyncWrite + Unpin + Send,
     {
-        let result = self.run_control_phase(control_transport, provider, verifier).await?;
+        let result = self
+            .run_control_phase(control_transport, provider, verifier)
+            .await?;
         self.run_data_phase(
             result.control,
             data_in_transport,
@@ -358,7 +360,8 @@ impl<E: StageExecutor> StageRuntime<E> {
                         Err(e) => {
                             error!(stage = self.stage_idx, request_id, error = %e, "request failed");
                             // Signal error on data_out so downstream/orchestrator unblocks.
-                            if let Err(e) = data_out.send(Bytes::from_static(ERROR_SENTINEL)).await {
+                            if let Err(e) = data_out.send(Bytes::from_static(ERROR_SENTINEL)).await
+                            {
                                 warn!(stage = self.stage_idx, error = %e, "failed to send error sentinel on data_out");
                             }
                             control
