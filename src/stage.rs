@@ -179,7 +179,7 @@ impl<E: StageExecutor> StageRuntime<E> {
                 StageMsg::Ready {
                     stage_idx: self.stage_idx,
                 }
-                .to_bytes(),
+                .to_bytes()?,
             )
             .await
             .map_err(PipelineError::Transport)?;
@@ -257,7 +257,7 @@ impl<E: StageExecutor> StageRuntime<E> {
                 StageMsg::DataChannelsReady {
                     stage_idx: self.stage_idx,
                 }
-                .to_bytes(),
+                .to_bytes()?,
             )
             .await
             .map_err(PipelineError::Transport)?;
@@ -307,7 +307,7 @@ impl<E: StageExecutor> StageRuntime<E> {
                 } => return Ok((has_upstream, has_downstream)),
                 OrchestratorMsg::Ping { seq } => {
                     control
-                        .send(StageMsg::Pong { seq }.to_bytes())
+                        .send(StageMsg::Pong { seq }.to_bytes()?)
                         .await
                         .map_err(PipelineError::Transport)?;
                     // Continue looping; the next message should be EstablishDataChannels.
@@ -351,21 +351,23 @@ impl<E: StageExecutor> StageRuntime<E> {
                     {
                         Ok(()) => {
                             control
-                                .send(StageMsg::RequestDone { request_id }.to_bytes())
+                                .send(StageMsg::RequestDone { request_id }.to_bytes()?)
                                 .await
                                 .map_err(PipelineError::Transport)?;
                         }
                         Err(e) => {
                             error!(stage = self.stage_idx, request_id, error = %e, "request failed");
                             // Signal error on data_out so downstream/orchestrator unblocks.
-                            let _ = data_out.send(Bytes::from_static(ERROR_SENTINEL)).await;
+                            if let Err(e) = data_out.send(Bytes::from_static(ERROR_SENTINEL)).await {
+                                warn!(stage = self.stage_idx, error = %e, "failed to send error sentinel on data_out");
+                            }
                             control
                                 .send(
                                     StageMsg::RequestError {
                                         request_id,
                                         error: e.to_string(),
                                     }
-                                    .to_bytes(),
+                                    .to_bytes()?,
                                 )
                                 .await
                                 .map_err(PipelineError::Transport)?;
@@ -380,7 +382,7 @@ impl<E: StageExecutor> StageRuntime<E> {
                 }
                 OrchestratorMsg::Ping { seq } => {
                     control
-                        .send(StageMsg::Pong { seq }.to_bytes())
+                        .send(StageMsg::Pong { seq }.to_bytes()?)
                         .await
                         .map_err(PipelineError::Transport)?;
                 }
@@ -391,7 +393,7 @@ impl<E: StageExecutor> StageRuntime<E> {
                             StageMsg::ShuttingDown {
                                 stage_idx: self.stage_idx,
                             }
-                            .to_bytes(),
+                            .to_bytes()?,
                         )
                         .await
                         .map_err(PipelineError::Transport)?;

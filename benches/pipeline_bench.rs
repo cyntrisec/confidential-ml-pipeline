@@ -410,11 +410,11 @@ fn bench_protocol_serde(c: &mut Criterion) {
         num_micro_batches: 16,
         seq_len: 512,
     };
-    let start_req_bytes = start_req.to_bytes();
+    let start_req_bytes = start_req.to_bytes().unwrap();
 
     group.bench_function("serialize_StartRequest", |b| {
         b.iter(|| {
-            let bytes = start_req.to_bytes();
+            let bytes = start_req.to_bytes().unwrap();
             black_box(bytes);
         })
     });
@@ -429,11 +429,11 @@ fn bench_protocol_serde(c: &mut Criterion) {
     let request_done = StageMsg::RequestDone {
         request_id: 12345678,
     };
-    let request_done_bytes = request_done.to_bytes();
+    let request_done_bytes = request_done.to_bytes().unwrap();
 
     group.bench_function("serialize_RequestDone", |b| {
         b.iter(|| {
-            let bytes = request_done.to_bytes();
+            let bytes = request_done.to_bytes().unwrap();
             black_box(bytes);
         })
     });

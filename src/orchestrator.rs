@@ -191,7 +191,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
 
             stage
                 .control
-                .send(msg.to_bytes())
+                .send(msg.to_bytes()?)
                 .await
                 .map_err(PipelineError::Transport)?;
         }
@@ -276,7 +276,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
             };
             stage
                 .control
-                .send(msg.to_bytes())
+                .send(msg.to_bytes()?)
                 .await
                 .map_err(PipelineError::Transport)?;
         }
@@ -325,8 +325,8 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
         );
 
         // Accept data_out from last stage (last stage = initiator, orchestrator = responder).
-        // Apply last stage's measurements for verification once mutual attestation
-        // is enabled (currently the responder role does not verify the initiator).
+        // Apply last stage's measurements — with mutual attestation (transport v0.4),
+        // the responder verifies the initiator's attestation during handshake.
         let last_idx = self.manifest.stages.len() - 1;
         let mut data_out_config = self.config.session_config.clone();
         if !self.manifest.stages[last_idx]
@@ -454,7 +454,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
             };
             stage
                 .control
-                .send(msg.to_bytes())
+                .send(msg.to_bytes()?)
                 .await
                 .map_err(PipelineError::Transport)?;
         }
@@ -648,7 +648,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
         for stage in &mut self.stages {
             stage
                 .control
-                .send(OrchestratorMsg::Ping { seq }.to_bytes())
+                .send(OrchestratorMsg::Ping { seq }.to_bytes()?)
                 .await
                 .map_err(PipelineError::Transport)?;
         }
@@ -714,7 +714,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
         for stage in &mut self.stages {
             stage
                 .control
-                .send(OrchestratorMsg::Shutdown.to_bytes())
+                .send(OrchestratorMsg::Shutdown.to_bytes()?)
                 .await
                 .map_err(PipelineError::Transport)?;
         }

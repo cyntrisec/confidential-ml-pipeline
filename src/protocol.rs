@@ -49,8 +49,8 @@ pub enum StageMsg {
 
 impl OrchestratorMsg {
     /// Serialize to JSON bytes for sending over a SecureChannel.
-    pub fn to_bytes(&self) -> bytes::Bytes {
-        bytes::Bytes::from(serde_json::to_vec(self).expect("OrchestratorMsg serialization"))
+    pub fn to_bytes(&self) -> Result<bytes::Bytes, serde_json::Error> {
+        serde_json::to_vec(self).map(bytes::Bytes::from)
     }
 
     /// Deserialize from bytes received from a SecureChannel.
@@ -61,8 +61,8 @@ impl OrchestratorMsg {
 
 impl StageMsg {
     /// Serialize to JSON bytes for sending over a SecureChannel.
-    pub fn to_bytes(&self) -> bytes::Bytes {
-        bytes::Bytes::from(serde_json::to_vec(self).expect("StageMsg serialization"))
+    pub fn to_bytes(&self) -> Result<bytes::Bytes, serde_json::Error> {
+        serde_json::to_vec(self).map(bytes::Bytes::from)
     }
 
     /// Deserialize from bytes received from a SecureChannel.
@@ -101,10 +101,10 @@ mod tests {
         ];
 
         for msg in msgs {
-            let bytes = msg.to_bytes();
+            let bytes = msg.to_bytes().unwrap();
             let decoded = OrchestratorMsg::from_bytes(&bytes).unwrap();
             // Verify tag-based discrimination round-trips
-            let re_bytes = decoded.to_bytes();
+            let re_bytes = decoded.to_bytes().unwrap();
             assert_eq!(bytes, re_bytes);
         }
     }
@@ -124,9 +124,9 @@ mod tests {
         ];
 
         for msg in msgs {
-            let bytes = msg.to_bytes();
+            let bytes = msg.to_bytes().unwrap();
             let decoded = StageMsg::from_bytes(&bytes).unwrap();
-            let re_bytes = decoded.to_bytes();
+            let re_bytes = decoded.to_bytes().unwrap();
             assert_eq!(bytes, re_bytes);
         }
     }

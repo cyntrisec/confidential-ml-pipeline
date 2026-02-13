@@ -80,6 +80,8 @@ pub enum PipelineError {
     Tainted,
     #[error("protocol error: {0}")]
     Protocol(String),
+    #[error("serialization error: {0}")]
+    Serialization(#[from] serde_json::Error),
 }
 
 /// Convenience alias.

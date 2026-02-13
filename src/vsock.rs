@@ -1,5 +1,5 @@
 use tokio_vsock::{VsockAddr, VsockListener, VsockStream, VMADDR_CID_ANY};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 use confidential_ml_transport::{AttestationProvider, AttestationVerifier, RetryPolicy};
 
@@ -184,16 +184,27 @@ pub async fn init_orchestrator_vsock(
         let mut handles = Vec::new();
         for (i, listener) in relay_listeners.iter().enumerate() {
             let (cid, port) = relay_downstream_addrs[i];
-            let (upstream, downstream) = tokio::try_join!(
+            let result = tokio::try_join!(
                 accept_vsock(listener),
                 connect_vsock_retry(cid, port, &relay_policy),
-            )?;
-            info!(
-                upstream_stage = i,
-                downstream_stage = i + 1,
-                "orchestrator: relay link established"
             );
-            handles.push(crate::relay::start_relay_link(upstream, downstream));
+            match result {
+                Ok((upstream, downstream)) => {
+                    info!(
+                        upstream_stage = i,
+                        downstream_stage = i + 1,
+                        "orchestrator: relay link established"
+                    );
+                    handles.push(crate::relay::start_relay_link(upstream, downstream));
+                }
+                Err(e) => {
+                    warn!(relay = i, error = %e, "relay link failed, aborting established relays");
+                    for h in &handles {
+                        h.abort();
+                    }
+                    return Err(e);
+                }
+            }
         }
         Ok::<Vec<crate::relay::RelayHandle>, PipelineError>(handles)
     };
