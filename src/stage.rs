@@ -340,8 +340,33 @@ impl<E: StageExecutor> StageRuntime<E> {
                 OrchestratorMsg::StartRequest {
                     request_id,
                     num_micro_batches,
-                    seq_len: _,
+                    seq_len,
                 } => {
+                    if let Some(ref spec) = self.activation_spec {
+                        if seq_len > spec.max_seq_len {
+                            error!(
+                                stage = self.stage_idx, seq_len,
+                                max = spec.max_seq_len,
+                                "seq_len exceeds max_seq_len"
+                            );
+                            let _ = data_out.send(Bytes::from_static(ERROR_SENTINEL)).await;
+                            control
+                                .send(
+                                    StageMsg::RequestError {
+                                        request_id,
+                                        error: format!(
+                                            "seq_len {} exceeds max_seq_len {}",
+                                            seq_len, spec.max_seq_len
+                                        ),
+                                    }
+                                    .to_bytes()?,
+                                )
+                                .await
+                                .map_err(PipelineError::Transport)?;
+                            continue;
+                        }
+                    }
+
                     debug!(
                         stage = self.stage_idx,
                         request_id, num_micro_batches, "processing request"

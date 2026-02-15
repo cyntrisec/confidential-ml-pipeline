@@ -87,6 +87,14 @@ struct StageHandle<T> {
     control: SecureChannel<T>,
 }
 
+/// Lifecycle state for the orchestrator.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum OrchestratorState {
+    Created,
+    Initialized,
+    Ready,
+}
+
 /// Host-side pipeline controller.
 ///
 /// Connects to all stages, verifies attestation, manages the pipeline lifecycle,
@@ -99,6 +107,7 @@ pub struct Orchestrator<T> {
     data_in: Option<SecureChannel<T>>,
     data_out: Option<SecureChannel<T>>,
     tainted: bool,
+    state: OrchestratorState,
 }
 
 impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
@@ -113,6 +122,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
             data_in: None,
             data_out: None,
             tainted: false,
+            state: OrchestratorState::Created,
         })
     }
 
@@ -139,6 +149,12 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
         provider: &dyn AttestationProvider,
         verifier: &dyn AttestationVerifier,
     ) -> crate::error::Result<()> {
+        if self.state != OrchestratorState::Created {
+            return Err(PipelineError::Protocol(
+                "init() must be called exactly once, in Created state".into(),
+            ));
+        }
+
         let num_stages = self.manifest.stages.len();
         if control_transports.len() != num_stages {
             return Err(PipelineError::Protocol(format!(
@@ -235,6 +251,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
             }
         }
 
+        self.state = OrchestratorState::Initialized;
         info!("orchestrator: all stages initialized");
         Ok(())
     }
@@ -273,6 +290,12 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
     /// connect. The caller should then provide the actual TCP/VSock transports
     /// and call [`Self::complete_data_channels`].
     pub async fn send_establish_data_channels(&mut self) -> crate::error::Result<()> {
+        if self.state != OrchestratorState::Initialized {
+            return Err(PipelineError::Protocol(
+                "send_establish_data_channels() requires Initialized state (call init() first)".into(),
+            ));
+        }
+
         let num_stages = self.stages.len();
 
         for (i, stage) in self.stages.iter_mut().enumerate() {
@@ -302,6 +325,12 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
         provider: &dyn AttestationProvider,
         verifier: &dyn AttestationVerifier,
     ) -> crate::error::Result<()> {
+        if self.state != OrchestratorState::Initialized {
+            return Err(PipelineError::Protocol(
+                "complete_data_channels() requires Initialized state".into(),
+            ));
+        }
+
         self.relay_handles = relay_handles;
 
         // Connect data_in to stage 0 (orchestrator = initiator, stage 0 = responder).
@@ -375,6 +404,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
             }
         }
 
+        self.state = OrchestratorState::Ready;
         info!("orchestrator: all data channels established");
         Ok(())
     }
@@ -401,6 +431,11 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
         input_tensors: Vec<Vec<OwnedTensor>>,
         seq_len: u32,
     ) -> crate::error::Result<InferenceResult> {
+        if self.state != OrchestratorState::Ready {
+            return Err(PipelineError::Protocol(
+                "infer() requires Ready state (call init() then establish_data_channels() first)".into(),
+            ));
+        }
         if self.tainted {
             return Err(PipelineError::Tainted);
         }
@@ -440,6 +475,13 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
             return Ok(InferenceResult {
                 outputs: Vec::new(),
             });
+        }
+
+        if seq_len > self.manifest.activation_spec.max_seq_len {
+            return Err(PipelineError::Protocol(format!(
+                "seq_len {} exceeds manifest max_seq_len {}",
+                seq_len, self.manifest.activation_spec.max_seq_len
+            )));
         }
 
         let data_in = self
@@ -522,19 +564,32 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
             }
             Err(PipelineError::StageFailed { .. }) => {
                 // A stage sent an error sentinel. Read control channels for details.
-                // Tolerant: skip stale Pongs and wrong-request-id messages.
+                // Use per-stage timeout so backpressure-stuck stages don't block the entire drain.
+                let drain_timeout = self.config.stage_drain_timeout;
                 for stage in &mut self.stages {
-                    let msg = recv_stage_msg_tolerant(&mut stage.control, Some(request_id)).await?;
-                    if let StageMsg::RequestError {
-                        request_id: rid,
-                        error,
-                    } = msg
+                    match tokio::time::timeout(
+                        drain_timeout,
+                        recv_stage_msg_tolerant(&mut stage.control, Some(request_id)),
+                    )
+                    .await
                     {
-                        if rid == request_id {
+                        Ok(Ok(StageMsg::RequestError {
+                            request_id: rid,
+                            error,
+                        })) if rid == request_id => {
                             return Err(PipelineError::RequestFailed {
                                 request_id,
                                 reason: format!("stage {} error: {}", stage.stage_idx, error),
                             });
+                        }
+                        Ok(Ok(_)) => continue,
+                        Ok(Err(_)) => continue,
+                        Err(_) => {
+                            debug!(
+                                stage = stage.stage_idx,
+                                "error drain: stage stuck, skipping"
+                            );
+                            continue;
                         }
                     }
                 }
@@ -633,6 +688,11 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
     ///
     /// Subject to `OrchestratorConfig::health_check_timeout`.
     pub async fn health_check(&mut self) -> crate::error::Result<()> {
+        if self.state != OrchestratorState::Ready {
+            return Err(PipelineError::Protocol(
+                "health_check() requires Ready state (call init() then establish_data_channels() first)".into(),
+            ));
+        }
         if self.tainted {
             return Err(PipelineError::Tainted);
         }

@@ -86,9 +86,9 @@ tokio::spawn(async move {
 
 // Run orchestrator
 let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest)?;
-orch.init(vec![orch_ctrl], &MockVerifier::new()).await?;
+orch.init(vec![orch_ctrl], &MockProvider::new(), &MockVerifier::new()).await?;
 orch.establish_data_channels(orch_data_in, orch_data_out, vec![],
-                              &MockVerifier::new(), &MockProvider::new()).await?;
+                              &MockProvider::new(), &MockVerifier::new()).await?;
 let result = orch.infer(input_tensors, seq_len).await?;
 ```
 

@@ -75,6 +75,22 @@ jobs:
         env:
           RUSTDOCFLAGS: -D warnings
 
+  examples:
+    name: Examples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone confidential-ml-transport
+        run: git clone --depth 1 https://github.com/cyntrisec/confidential-ml-transport.git ../confidential-ml-transport
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev libtss2-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Check mock-pipeline example
+        run: cargo check --manifest-path examples/mock-pipeline/Cargo.toml
+      - name: Check tcp-pipeline example
+        run: cargo check --manifest-path examples/tcp-pipeline/Cargo.toml
+
   fmt:
     name: Format
     runs-on: ubuntu-latest

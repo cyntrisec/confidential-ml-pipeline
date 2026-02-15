@@ -197,10 +197,10 @@ async fn main() {
     let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
 
     println!("[orch] Initializing pipeline...");
-    orch.init(orch_ctrls, &verifier).await.unwrap();
+    orch.init(orch_ctrls, &provider, &verifier).await.unwrap();
 
     println!("[orch] Establishing data channels...");
-    orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &verifier, &provider)
+    orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &provider, &verifier)
         .await
         .unwrap();
 

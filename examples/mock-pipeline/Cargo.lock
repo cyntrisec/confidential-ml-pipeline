@@ -87,7 +87,7 @@ dependencies = [
 
 [[package]]
 name = "confidential-ml-pipeline"
-version = "0.1.0"
+version = "0.3.1"
 dependencies = [
  "async-trait",
  "bytes",
@@ -102,7 +102,7 @@ dependencies = [
 
 [[package]]
 name = "confidential-ml-transport"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "async-trait",
  "bytes",
@@ -111,6 +111,7 @@ dependencies = [
  "hkdf",
  "rand",
  "sha2",
+ "subtle",
  "thiserror",
  "tokio",
  "tokio-util",
