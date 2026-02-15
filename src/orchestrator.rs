@@ -155,6 +155,9 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
             ));
         }
 
+        // Clear any partial state from a previous failed init() attempt.
+        self.stages.clear();
+
         let num_stages = self.manifest.stages.len();
         if control_transports.len() != num_stages {
             return Err(PipelineError::Protocol(format!(
