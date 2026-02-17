@@ -28,6 +28,11 @@ pub struct OrchestratorConfig {
     pub data_drain_timeout: Duration,
     /// If no data arrives for this long on data_out, consider it drained (default: 200ms).
     pub data_quiet_period: Duration,
+    /// Timeout for per-stage shutdown acknowledgement (default: 10 seconds).
+    pub shutdown_timeout: Duration,
+    /// If true, `init()` returns an error when no stage has `expected_measurements`.
+    /// Default: false (warning only). Set to true for production TEE deployments.
+    pub require_measurements: bool,
 }
 
 impl Default for OrchestratorConfig {
@@ -40,6 +45,8 @@ impl Default for OrchestratorConfig {
             stage_drain_timeout: Duration::from_secs(5),
             data_drain_timeout: Duration::from_secs(2),
             data_quiet_period: Duration::from_millis(200),
+            shutdown_timeout: Duration::from_secs(10),
+            require_measurements: false,
         }
     }
 }
@@ -141,6 +148,14 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
         self.tainted
     }
 
+    /// Abort all relay tasks and clear the handles list.
+    fn abort_and_clear_relays(&mut self) {
+        for relay in &self.relay_handles {
+            relay.abort();
+        }
+        self.relay_handles.clear();
+    }
+
     /// Initialize the pipeline: connect control channels, verify attestation,
     /// send Init, and wait for all stages to be Ready.
     pub async fn init(
@@ -222,8 +237,14 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
         for stage in &mut self.stages {
             let msg = recv_stage_msg(&mut stage.control).await?;
             match msg {
-                StageMsg::Ready { stage_idx } => {
+                StageMsg::Ready { stage_idx } if stage_idx == stage.stage_idx => {
                     info!(stage = stage_idx, "orchestrator: stage ready");
+                }
+                StageMsg::Ready { stage_idx } => {
+                    return Err(PipelineError::Protocol(format!(
+                        "stage {} reported Ready with wrong stage_idx {stage_idx}",
+                        stage.stage_idx
+                    )));
                 }
                 other => {
                     return Err(PipelineError::Protocol(format!(
@@ -234,12 +255,6 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
             }
         }
 
-        #[cfg(any(
-            feature = "nitro",
-            feature = "sev-snp",
-            feature = "tdx",
-            feature = "azure-sev-snp"
-        ))]
         {
             let has_any = self
                 .manifest
@@ -247,6 +262,13 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
                 .iter()
                 .any(|s| !s.expected_measurements.is_empty());
             if !has_any {
+                if self.config.require_measurements {
+                    return Err(PipelineError::Protocol(
+                        "require_measurements is set but no stage has expected_measurements — \
+                         attestation cannot verify enclave identity"
+                            .into(),
+                    ));
+                }
                 warn!(
                     "no expected_measurements configured for any stage — \
                        attestation will not verify enclave identity"
@@ -334,6 +356,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
             ));
         }
 
+        // Store relay handles but abort them if any subsequent setup step fails.
         self.relay_handles = relay_handles;
 
         // Connect data_in to stage 0 (orchestrator = initiator, stage 0 = responder).
@@ -345,6 +368,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
                 self.manifest.stages[0]
                     .to_expected_measurements()
                     .map_err(|e| {
+                        self.abort_and_clear_relays();
                         PipelineError::Protocol(format!(
                             "invalid measurements for stage 0 data_in: {e}"
                         ))
@@ -359,7 +383,10 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
                 data_in_config,
             )
             .await
-            .map_err(PipelineError::Transport)?,
+            .map_err(|e| {
+                self.abort_and_clear_relays();
+                PipelineError::Transport(e)
+            })?,
         );
 
         // Accept data_out from last stage (last stage = initiator, orchestrator = responder).
@@ -375,6 +402,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
                 self.manifest.stages[last_idx]
                     .to_expected_measurements()
                     .map_err(|e| {
+                        self.abort_and_clear_relays();
                         PipelineError::Protocol(format!(
                             "invalid measurements for stage {last_idx} data_out: {e}"
                         ))
@@ -389,14 +417,23 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
                 data_out_config,
             )
             .await
-            .map_err(PipelineError::Transport)?,
+            .map_err(|e| {
+                self.abort_and_clear_relays();
+                PipelineError::Transport(e)
+            })?,
         );
 
         for stage in &mut self.stages {
             let msg = recv_stage_msg(&mut stage.control).await?;
             match msg {
-                StageMsg::DataChannelsReady { stage_idx } => {
+                StageMsg::DataChannelsReady { stage_idx } if stage_idx == stage.stage_idx => {
                     info!(stage = stage_idx, "orchestrator: data channels ready");
+                }
+                StageMsg::DataChannelsReady { stage_idx } => {
+                    return Err(PipelineError::Protocol(format!(
+                        "stage {} reported DataChannelsReady with wrong stage_idx {stage_idx}",
+                        stage.stage_idx
+                    )));
                 }
                 other => {
                     return Err(PipelineError::Protocol(format!(
@@ -788,17 +825,37 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
                 .map_err(PipelineError::Transport)?;
         }
 
+        let shutdown_timeout = self.config.shutdown_timeout;
         for stage in &mut self.stages {
-            let msg = recv_stage_msg(&mut stage.control).await?;
-            match msg {
-                StageMsg::ShuttingDown { stage_idx } => {
+            let result =
+                tokio::time::timeout(shutdown_timeout, recv_stage_msg(&mut stage.control)).await;
+            match result {
+                Ok(Ok(StageMsg::ShuttingDown { stage_idx }))
+                    if stage_idx == stage.stage_idx =>
+                {
                     info!(stage = stage_idx, "stage shut down");
                 }
-                other => {
+                Ok(Ok(StageMsg::ShuttingDown { stage_idx })) => {
                     warn!(
                         stage = stage.stage_idx,
-                        "expected ShuttingDown, got {other:?}"
+                        reported = stage_idx,
+                        "ShuttingDown with wrong stage_idx"
                     );
+                }
+                Ok(Ok(other)) => {
+                    return Err(PipelineError::Protocol(format!(
+                        "expected ShuttingDown from stage {}, got {other:?}",
+                        stage.stage_idx
+                    )));
+                }
+                Ok(Err(e)) => {
+                    return Err(e);
+                }
+                Err(_) => {
+                    return Err(PipelineError::Timeout(format!(
+                        "stage {} did not acknowledge shutdown within {:?}",
+                        stage.stage_idx, shutdown_timeout
+                    )));
                 }
             }
         }

@@ -372,10 +372,79 @@ impl<E: StageExecutor> StageRuntime<E> {
                         request_id, num_micro_batches, "processing request"
                     );
 
-                    match self
-                        .process_request(request_id, num_micro_batches, data_in, data_out)
-                        .await
-                    {
+                    // Run process_request with select! so AbortRequest/Ping can
+                    // be handled while the request is in progress.
+                    // Scoped so process_fut (which borrows data_in/data_out)
+                    // is dropped before the error handler needs data_out.
+                    let result = {
+                        let process_fut = self.process_request(
+                            request_id,
+                            num_micro_batches,
+                            data_in,
+                            data_out,
+                        );
+                        tokio::pin!(process_fut);
+
+                        let mut early_shutdown = false;
+                        let res = loop {
+                            tokio::select! {
+                                res = &mut process_fut => {
+                                    break res;
+                                }
+                                ctrl_msg = recv_control(control) => {
+                                    match ctrl_msg? {
+                                        OrchestratorMsg::AbortRequest { request_id: rid, reason } => {
+                                            warn!(
+                                                stage = self.stage_idx,
+                                                request_id = rid, reason,
+                                                "request aborted by orchestrator — cancelling"
+                                            );
+                                            break Err(PipelineError::RequestFailed {
+                                                request_id,
+                                                reason: format!("aborted: {reason}"),
+                                            });
+                                        }
+                                        OrchestratorMsg::Ping { seq } => {
+                                            control
+                                                .send(StageMsg::Pong { seq }.to_bytes()?)
+                                                .await
+                                                .map_err(PipelineError::Transport)?;
+                                        }
+                                        OrchestratorMsg::Shutdown => {
+                                            early_shutdown = true;
+                                            break Err(PipelineError::Shutdown);
+                                        }
+                                        other => {
+                                            warn!(
+                                                stage = self.stage_idx,
+                                                "unexpected control message during request: {other:?}"
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        };
+
+                        if early_shutdown {
+                            // process_fut dropped here (cancelled).
+                            drop(process_fut);
+                            info!(stage = self.stage_idx, "shutdown during request");
+                            control
+                                .send(
+                                    StageMsg::ShuttingDown {
+                                        stage_idx: self.stage_idx,
+                                    }
+                                    .to_bytes()?,
+                                )
+                                .await
+                                .map_err(PipelineError::Transport)?;
+                            return Ok(());
+                        }
+
+                        res
+                    }; // process_fut dropped here — data_in/data_out borrows released.
+
+                    match result {
                         Ok(()) => {
                             control
                                 .send(StageMsg::RequestDone { request_id }.to_bytes()?)
@@ -384,7 +453,6 @@ impl<E: StageExecutor> StageRuntime<E> {
                         }
                         Err(e) => {
                             error!(stage = self.stage_idx, request_id, error = %e, "request failed");
-                            // Signal error on data_out so downstream/orchestrator unblocks.
                             if let Err(e) = data_out.send(Bytes::from_static(ERROR_SENTINEL)).await
                             {
                                 warn!(stage = self.stage_idx, error = %e, "failed to send error sentinel on data_out");
@@ -403,9 +471,10 @@ impl<E: StageExecutor> StageRuntime<E> {
                     }
                 }
                 OrchestratorMsg::AbortRequest { request_id, reason } => {
+                    // AbortRequest outside of an active request — nothing to cancel.
                     warn!(
                         stage = self.stage_idx,
-                        request_id, reason, "request aborted by orchestrator"
+                        request_id, reason, "abort received but no request in progress"
                     );
                 }
                 OrchestratorMsg::Ping { seq } => {
