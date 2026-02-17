@@ -345,7 +345,8 @@ impl<E: StageExecutor> StageRuntime<E> {
                     if let Some(ref spec) = self.activation_spec {
                         if seq_len > spec.max_seq_len {
                             error!(
-                                stage = self.stage_idx, seq_len,
+                                stage = self.stage_idx,
+                                seq_len,
                                 max = spec.max_seq_len,
                                 "seq_len exceeds max_seq_len"
                             );
@@ -377,12 +378,8 @@ impl<E: StageExecutor> StageRuntime<E> {
                     // Scoped so process_fut (which borrows data_in/data_out)
                     // is dropped before the error handler needs data_out.
                     let result = {
-                        let process_fut = self.process_request(
-                            request_id,
-                            num_micro_batches,
-                            data_in,
-                            data_out,
-                        );
+                        let process_fut =
+                            self.process_request(request_id, num_micro_batches, data_in, data_out);
                         tokio::pin!(process_fut);
 
                         let mut early_shutdown = false;
@@ -426,8 +423,7 @@ impl<E: StageExecutor> StageRuntime<E> {
                         };
 
                         if early_shutdown {
-                            // process_fut dropped here (cancelled).
-                            drop(process_fut);
+                            // process_fut is dropped when this block scope ends (cancelled).
                             info!(stage = self.stage_idx, "shutdown during request");
                             control
                                 .send(

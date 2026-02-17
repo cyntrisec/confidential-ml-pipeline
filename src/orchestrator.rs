@@ -317,7 +317,8 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
     pub async fn send_establish_data_channels(&mut self) -> crate::error::Result<()> {
         if self.state != OrchestratorState::Initialized {
             return Err(PipelineError::Protocol(
-                "send_establish_data_channels() requires Initialized state (call init() first)".into(),
+                "send_establish_data_channels() requires Initialized state (call init() first)"
+                    .into(),
             ));
         }
 
@@ -473,7 +474,8 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
     ) -> crate::error::Result<InferenceResult> {
         if self.state != OrchestratorState::Ready {
             return Err(PipelineError::Protocol(
-                "infer() requires Ready state (call init() then establish_data_channels() first)".into(),
+                "infer() requires Ready state (call init() then establish_data_channels() first)"
+                    .into(),
             ));
         }
         if self.tainted {
@@ -830,9 +832,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
             let result =
                 tokio::time::timeout(shutdown_timeout, recv_stage_msg(&mut stage.control)).await;
             match result {
-                Ok(Ok(StageMsg::ShuttingDown { stage_idx }))
-                    if stage_idx == stage.stage_idx =>
-                {
+                Ok(Ok(StageMsg::ShuttingDown { stage_idx })) if stage_idx == stage.stage_idx => {
                     info!(stage = stage_idx, "stage shut down");
                 }
                 Ok(Ok(StageMsg::ShuttingDown { stage_idx })) => {
