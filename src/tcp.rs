@@ -46,7 +46,11 @@ pub async fn connect_tcp_retry(
                 tokio::time::sleep(delay).await;
             }
             Err(e) => {
-                return Err(PipelineError::Io(e));
+                let attempts = attempt + 1;
+                return Err(PipelineError::Io(std::io::Error::new(
+                    e.kind(),
+                    format!("TCP connect to {addr} failed after {attempts} attempt(s): {e}"),
+                )));
             }
         }
     }
