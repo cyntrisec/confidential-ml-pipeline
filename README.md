@@ -137,8 +137,21 @@ cargo run --bin pipeline-orch --manifest-path examples/tcp-pipeline/Cargo.toml -
 
 ## Testing
 
+Test counts depend on features:
+
+| Command | Tests | Notes |
+|---------|-------|-------|
+| `cargo test` | ~49 | Default features (tcp only) |
+| `cargo test --features mock` | ~82 | Full suite including mock integration, stress, and timeout tests |
+
+Note: `mock` cannot be combined with production attestation features (`tdx`, `nitro`, etc.)
+due to a compile-time guard. Some integration tests bind TCP ports and may need socket permissions.
+
 ```bash
-# All tests (51 total: 23 unit + 18 integration + 3 TCP + 4 stress + 4 timeout)
+# Full test suite (recommended)
+cargo test --features mock
+
+# Default features only
 cargo test
 
 # Stress tests only (100 sequential requests, 1.5 MiB tensors, 16 micro-batches, 3-stage multi-request)
