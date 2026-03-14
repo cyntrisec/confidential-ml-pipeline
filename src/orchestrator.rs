@@ -10,11 +10,21 @@ use zeroize::Zeroize;
 
 use crate::error::PipelineError;
 use crate::manifest::ShardManifest;
-use crate::protocol::{OrchestratorMsg, StageMsg};
+use crate::protocol::{OrchestratorMsg, StageMsg, DEFAULT_MAX_CONTROL_MESSAGE_BYTES};
 use crate::relay::RelayHandle;
 use crate::stage::ERROR_SENTINEL;
 
 /// Configuration for the orchestrator.
+///
+/// # Security profile
+///
+/// The default configuration uses `require_measurements: true`, matching the
+/// transport layer's `SecurityProfile::Production`. This means `init()` will
+/// return an error if no stage has `expected_measurements` configured.
+///
+/// For tests and development, use [`OrchestratorConfig::development()`] which
+/// sets `require_measurements: false` and uses the transport layer's
+/// `Development` security profile.
 pub struct OrchestratorConfig {
     pub session_config: SessionConfig,
     /// Timeout for health-check pings (default: 10 seconds).
@@ -32,8 +42,14 @@ pub struct OrchestratorConfig {
     /// Timeout for per-stage shutdown acknowledgement (default: 10 seconds).
     pub shutdown_timeout: Duration,
     /// If true, `init()` returns an error when no stage has `expected_measurements`.
-    /// Default: false (warning only). Set to true for production TEE deployments.
+    ///
+    /// **Default: `true`** (fail-closed). Set to `false` only for development
+    /// and testing environments where TEE attestation is unavailable.
     pub require_measurements: bool,
+    /// Maximum size (in bytes) for a single control message.
+    /// Messages exceeding this limit are rejected before deserialization.
+    /// Default: 4 MiB.
+    pub max_control_message_bytes: usize,
 }
 
 impl Default for OrchestratorConfig {
@@ -47,12 +63,31 @@ impl Default for OrchestratorConfig {
             data_drain_timeout: Duration::from_secs(2),
             data_quiet_period: Duration::from_millis(200),
             shutdown_timeout: Duration::from_secs(10),
-            require_measurements: false,
+            require_measurements: true,
+            max_control_message_bytes: DEFAULT_MAX_CONTROL_MESSAGE_BYTES,
         }
     }
 }
 
 impl OrchestratorConfig {
+    /// Create an `OrchestratorConfig` suitable for development and testing.
+    ///
+    /// Sets `require_measurements` to `false` and uses the transport layer's
+    /// `Development` security profile, allowing pipelines to run without TEE
+    /// attestation measurements.
+    ///
+    /// # Security warning
+    ///
+    /// Do **not** use this in production. It disables measurement enforcement
+    /// at both the pipeline and transport layers.
+    pub fn development() -> Self {
+        Self {
+            session_config: SessionConfig::development(),
+            require_measurements: false,
+            ..Self::default()
+        }
+    }
+
     /// Validate configuration values.
     pub fn validate(&self) -> crate::error::Result<()> {
         if self.stage_drain_timeout.is_zero() {
@@ -76,6 +111,11 @@ impl OrchestratorConfig {
         if self.health_check_timeout.is_zero() {
             return Err(PipelineError::Protocol(
                 "health_check_timeout must be > 0".into(),
+            ));
+        }
+        if self.max_control_message_bytes == 0 {
+            return Err(PipelineError::Protocol(
+                "max_control_message_bytes must be > 0".into(),
             ));
         }
         Ok(())
@@ -235,8 +275,9 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
                 .map_err(PipelineError::Transport)?;
         }
 
+        let max_bytes = self.config.max_control_message_bytes;
         for stage in &mut self.stages {
-            let msg = recv_stage_msg(&mut stage.control).await?;
+            let msg = recv_stage_msg(&mut stage.control, max_bytes).await?;
             match msg {
                 StageMsg::Ready { stage_idx } if stage_idx == stage.stage_idx => {
                     info!(stage = stage_idx, "orchestrator: stage ready");
@@ -425,8 +466,9 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
             })?,
         );
 
+        let max_bytes = self.config.max_control_message_bytes;
         for stage in &mut self.stages {
-            let msg = recv_stage_msg(&mut stage.control).await?;
+            let msg = recv_stage_msg(&mut stage.control, max_bytes).await?;
             match msg {
                 StageMsg::DataChannelsReady { stage_idx } if stage_idx == stage.stage_idx => {
                     info!(stage = stage_idx, "orchestrator: data channels ready");
@@ -589,8 +631,9 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
             Ok(outputs) => {
                 // Success: collect RequestDone confirmations from all stages.
                 // Tolerant: skip stale Pongs and wrong-request-id messages.
+                let max_bytes = self.config.max_control_message_bytes;
                 for stage in &mut self.stages {
-                    let msg = recv_stage_msg_tolerant(&mut stage.control, Some(request_id)).await?;
+                    let msg = recv_stage_msg_tolerant(&mut stage.control, Some(request_id), max_bytes).await?;
                     match msg {
                         StageMsg::RequestDone { request_id: rid } if rid == request_id => {
                             debug!(stage = stage.stage_idx, "orchestrator: stage done");
@@ -620,10 +663,11 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
                 // A stage sent an error sentinel. Read control channels for details.
                 // Use per-stage timeout so backpressure-stuck stages don't block the entire drain.
                 let drain_timeout = self.config.stage_drain_timeout;
+                let max_bytes = self.config.max_control_message_bytes;
                 for stage in &mut self.stages {
                     match tokio::time::timeout(
                         drain_timeout,
-                        recv_stage_msg_tolerant(&mut stage.control, Some(request_id)),
+                        recv_stage_msg_tolerant(&mut stage.control, Some(request_id), max_bytes),
                     )
                     .await
                     {
@@ -667,13 +711,18 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
         let stage_drain_timeout = self.config.stage_drain_timeout;
         let data_drain_timeout = self.config.data_drain_timeout;
         let data_quiet_period = self.config.data_quiet_period;
+        let max_bytes = self.config.max_control_message_bytes;
 
         // Step 1: Drain control channels.
         for i in 0..self.stages.len() {
             let stage_idx = self.stages[i].stage_idx;
             let result = tokio::time::timeout(
                 stage_drain_timeout,
-                drain_control_until_request_complete(&mut self.stages[i].control, request_id),
+                drain_control_until_request_complete(
+                    &mut self.stages[i].control,
+                    request_id,
+                    max_bytes,
+                ),
             )
             .await;
 
@@ -764,6 +813,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
 
     async fn health_check_inner(&mut self) -> crate::error::Result<()> {
         let seq = rand_request_id();
+        let max_bytes = self.config.max_control_message_bytes;
 
         for stage in &mut self.stages {
             stage
@@ -776,7 +826,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
         // Tolerant reader: skip stale Pongs (wrong seq), stale RequestDone/RequestError.
         for stage in &mut self.stages {
             loop {
-                let msg = recv_stage_msg(&mut stage.control).await?;
+                let msg = recv_stage_msg(&mut stage.control, max_bytes).await?;
                 match msg {
                     StageMsg::Pong { seq: s } if s == seq => {
                         debug!(stage = stage.stage_idx, "health check OK");
@@ -840,9 +890,10 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
         }
 
         let shutdown_timeout = self.config.shutdown_timeout;
+        let max_bytes = self.config.max_control_message_bytes;
         for stage in &mut self.stages {
             let result =
-                tokio::time::timeout(shutdown_timeout, recv_stage_msg(&mut stage.control)).await;
+                tokio::time::timeout(shutdown_timeout, recv_stage_msg(&mut stage.control, max_bytes)).await;
             match result {
                 Ok(Ok(StageMsg::ShuttingDown { stage_idx })) if stage_idx == stage.stage_idx => {
                     info!(stage = stage_idx, "stage shut down");
@@ -895,14 +946,14 @@ async fn receive_all_outputs<T: AsyncRead + AsyncWrite + Unpin + Send>(
     Ok(outputs)
 }
 
-/// Receive a stage message from a control channel.
+/// Receive a stage message from a control channel with size and version checks.
 async fn recv_stage_msg<T: AsyncRead + AsyncWrite + Unpin + Send>(
     channel: &mut SecureChannel<T>,
+    max_bytes: usize,
 ) -> crate::error::Result<StageMsg> {
     let msg = channel.recv().await.map_err(PipelineError::Transport)?;
     match msg {
-        Message::Data(data) => StageMsg::from_bytes(&data)
-            .map_err(|e| PipelineError::Protocol(format!("invalid stage message: {e}"))),
+        Message::Data(data) => StageMsg::from_bytes_checked(&data, max_bytes),
         Message::Shutdown => Err(PipelineError::Shutdown),
         other => Err(PipelineError::Protocol(format!(
             "expected Data on control channel, got {other:?}"
@@ -916,9 +967,10 @@ async fn recv_stage_msg<T: AsyncRead + AsyncWrite + Unpin + Send>(
 async fn recv_stage_msg_tolerant<T: AsyncRead + AsyncWrite + Unpin + Send>(
     channel: &mut SecureChannel<T>,
     expected_request_id: Option<u64>,
+    max_bytes: usize,
 ) -> crate::error::Result<StageMsg> {
     loop {
-        let msg = recv_stage_msg(channel).await?;
+        let msg = recv_stage_msg(channel, max_bytes).await?;
         match &msg {
             // Skip stale Pongs from previous health checks.
             StageMsg::Pong { seq } => {
@@ -926,17 +978,21 @@ async fn recv_stage_msg_tolerant<T: AsyncRead + AsyncWrite + Unpin + Send>(
                 continue;
             }
             // Skip RequestDone/RequestError for other request IDs.
-            StageMsg::RequestDone { request_id } if expected_request_id.is_some() => {
-                if *request_id != expected_request_id.unwrap() {
-                    debug!(request_id, "tolerant reader: skipping stale RequestDone");
-                    continue;
+            StageMsg::RequestDone { request_id } => {
+                if let Some(expected) = expected_request_id {
+                    if *request_id != expected {
+                        debug!(request_id, "tolerant reader: skipping stale RequestDone");
+                        continue;
+                    }
                 }
                 return Ok(msg);
             }
-            StageMsg::RequestError { request_id, .. } if expected_request_id.is_some() => {
-                if *request_id != expected_request_id.unwrap() {
-                    debug!(request_id, "tolerant reader: skipping stale RequestError");
-                    continue;
+            StageMsg::RequestError { request_id, .. } => {
+                if let Some(expected) = expected_request_id {
+                    if *request_id != expected {
+                        debug!(request_id, "tolerant reader: skipping stale RequestError");
+                        continue;
+                    }
                 }
                 return Ok(msg);
             }
@@ -950,9 +1006,10 @@ async fn recv_stage_msg_tolerant<T: AsyncRead + AsyncWrite + Unpin + Send>(
 async fn drain_control_until_request_complete<T: AsyncRead + AsyncWrite + Unpin + Send>(
     channel: &mut SecureChannel<T>,
     expected_request_id: u64,
+    max_bytes: usize,
 ) -> crate::error::Result<()> {
     loop {
-        let msg = recv_stage_msg(channel).await?;
+        let msg = recv_stage_msg(channel, max_bytes).await?;
         match msg {
             StageMsg::RequestDone { request_id } if request_id == expected_request_id => {
                 return Ok(());

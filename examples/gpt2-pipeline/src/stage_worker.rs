@@ -113,7 +113,7 @@ async fn main() -> anyhow::Result<()> {
 
         tcp::run_stage_with_listeners(
             Gpt2StageExecutor::new(PathBuf::from(&args.model_dir)),
-            StageConfig::default(),
+            StageConfig::development(),
             ctrl_lis,
             din_lis,
             dout_target,
@@ -148,7 +148,7 @@ async fn main() -> anyhow::Result<()> {
 
         tcp::run_stage_with_listeners(
             Gpt2StageExecutor::new(PathBuf::from(&args.model_dir)),
-            StageConfig::default(),
+            StageConfig::development(),
             ctrl_lis,
             din_lis,
             dout_target,
@@ -183,7 +183,7 @@ async fn main() -> anyhow::Result<()> {
 
         tcp::run_stage_with_listeners(
             Gpt2StageExecutor::new(PathBuf::from(&args.model_dir)),
-            StageConfig::default(),
+            StageConfig::development(),
             ctrl_lis,
             din_lis,
             dout_target,
@@ -225,7 +225,7 @@ async fn main() -> anyhow::Result<()> {
 
         vsock::run_stage_with_listeners_vsock(
             Gpt2StageExecutor::new(PathBuf::from(&args.model_dir)),
-            StageConfig::default(),
+            StageConfig::development(),
             ctrl_lis,
             din_lis,
             data_out_cid,

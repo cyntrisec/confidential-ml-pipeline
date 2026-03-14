@@ -112,7 +112,7 @@ async fn two_stage_tcp_pipeline() {
         let verifier = MockVerifier::new();
         tcp::run_stage_with_listeners(
             IdentityExecutor,
-            StageConfig::default(),
+            StageConfig::development(),
             s0_ctrl_lis,
             s0_din_lis,
             s1_din_addr,
@@ -129,7 +129,7 @@ async fn two_stage_tcp_pipeline() {
         let verifier = MockVerifier::new();
         tcp::run_stage_with_listeners(
             IdentityExecutor,
-            StageConfig::default(),
+            StageConfig::development(),
             s1_ctrl_lis,
             s1_din_lis,
             orch_dout_addr,
@@ -148,7 +148,7 @@ async fn two_stage_tcp_pipeline() {
     let provider = MockProvider::new();
 
     let mut orch = tcp::init_orchestrator_tcp(
-        OrchestratorConfig::default(),
+        OrchestratorConfig::development(),
         manifest,
         orch_dout_lis,
         &verifier,
@@ -195,7 +195,7 @@ async fn single_stage_tcp_pipeline() {
         let verifier = MockVerifier::new();
         tcp::run_stage_with_listeners(
             IdentityExecutor,
-            StageConfig::default(),
+            StageConfig::development(),
             s0_ctrl_lis,
             s0_din_lis,
             orch_dout_addr,
@@ -212,7 +212,7 @@ async fn single_stage_tcp_pipeline() {
     let provider = MockProvider::new();
 
     let mut orch = tcp::init_orchestrator_tcp(
-        OrchestratorConfig::default(),
+        OrchestratorConfig::development(),
         manifest,
         orch_dout_lis,
         &verifier,
@@ -264,7 +264,7 @@ async fn three_stage_tcp_pipeline() {
         let verifier = MockVerifier::new();
         tcp::run_stage_with_listeners(
             IdentityExecutor,
-            StageConfig::default(),
+            StageConfig::development(),
             s0_ctrl_lis,
             s0_din_lis,
             s1_din_addr,
@@ -281,7 +281,7 @@ async fn three_stage_tcp_pipeline() {
         let verifier = MockVerifier::new();
         tcp::run_stage_with_listeners(
             IdentityExecutor,
-            StageConfig::default(),
+            StageConfig::development(),
             s1_ctrl_lis,
             s1_din_lis,
             s2_din_addr,
@@ -298,7 +298,7 @@ async fn three_stage_tcp_pipeline() {
         let verifier = MockVerifier::new();
         tcp::run_stage_with_listeners(
             IdentityExecutor,
-            StageConfig::default(),
+            StageConfig::development(),
             s2_ctrl_lis,
             s2_din_lis,
             orch_dout_addr,
@@ -315,7 +315,7 @@ async fn three_stage_tcp_pipeline() {
     let provider = MockProvider::new();
 
     let mut orch = tcp::init_orchestrator_tcp(
-        OrchestratorConfig::default(),
+        OrchestratorConfig::development(),
         manifest,
         orch_dout_lis,
         &verifier,

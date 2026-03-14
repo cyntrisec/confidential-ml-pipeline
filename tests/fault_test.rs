@@ -85,7 +85,7 @@ async fn stage_failure_returns_request_error() {
     let stage0_handle = tokio::spawn(async move {
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
-        let mut runtime = StageRuntime::new(FailingExecutor, StageConfig::default());
+        let mut runtime = StageRuntime::new(FailingExecutor, StageConfig::development());
         runtime
             .run(
                 stage0_ctrl,
@@ -99,7 +99,7 @@ async fn stage_failure_returns_request_error() {
 
     let verifier = MockVerifier::new();
     let provider = MockProvider::new();
-    let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
+    let mut orch = Orchestrator::new(OrchestratorConfig::development(), manifest).unwrap();
 
     orch.init(vec![orch_ctrl0], &provider, &verifier)
         .await

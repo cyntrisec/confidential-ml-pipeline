@@ -105,7 +105,7 @@ async fn two_stage_identity_pipeline() {
     let stage0_handle = tokio::spawn(async move {
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
-        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::default());
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::development());
         runtime
             .run(
                 stage0_ctrl,
@@ -122,7 +122,7 @@ async fn two_stage_identity_pipeline() {
     let stage1_handle = tokio::spawn(async move {
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
-        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::default());
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::development());
         runtime
             .run(
                 stage1_ctrl,
@@ -136,7 +136,7 @@ async fn two_stage_identity_pipeline() {
     });
 
     // Run orchestrator.
-    let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
+    let mut orch = Orchestrator::new(OrchestratorConfig::development(), manifest).unwrap();
 
     // Phase 1: Init.
     orch.init(vec![orch_ctrl0, orch_ctrl1], &provider, &verifier)
@@ -183,7 +183,7 @@ async fn two_stage_two_micro_batches() {
     let stage0_handle = tokio::spawn(async move {
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
-        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::default());
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::development());
         runtime
             .run(
                 stage0_ctrl,
@@ -199,7 +199,7 @@ async fn two_stage_two_micro_batches() {
     let stage1_handle = tokio::spawn(async move {
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
-        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::default());
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::development());
         runtime
             .run(
                 stage1_ctrl,
@@ -212,7 +212,7 @@ async fn two_stage_two_micro_batches() {
             .unwrap();
     });
 
-    let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
+    let mut orch = Orchestrator::new(OrchestratorConfig::development(), manifest).unwrap();
     orch.init(vec![orch_ctrl0, orch_ctrl1], &provider, &verifier)
         .await
         .unwrap();
@@ -248,7 +248,7 @@ async fn sequential_inference_ten_requests() {
     let stage0_handle = tokio::spawn(async move {
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
-        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::default());
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::development());
         runtime
             .run(
                 stage0_ctrl,
@@ -264,7 +264,7 @@ async fn sequential_inference_ten_requests() {
     let stage1_handle = tokio::spawn(async move {
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
-        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::default());
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::development());
         runtime
             .run(
                 stage1_ctrl,
@@ -277,7 +277,7 @@ async fn sequential_inference_ten_requests() {
             .unwrap();
     });
 
-    let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
+    let mut orch = Orchestrator::new(OrchestratorConfig::development(), manifest).unwrap();
     orch.init(vec![orch_ctrl0, orch_ctrl1], &provider, &verifier)
         .await
         .unwrap();
@@ -325,7 +325,7 @@ async fn three_stage_identity_pipeline() {
     let stage0_handle = tokio::spawn(async move {
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
-        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::default());
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::development());
         runtime
             .run(
                 stage0_ctrl,
@@ -341,7 +341,7 @@ async fn three_stage_identity_pipeline() {
     let stage1_handle = tokio::spawn(async move {
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
-        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::default());
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::development());
         runtime
             .run(
                 stage1_ctrl,
@@ -357,7 +357,7 @@ async fn three_stage_identity_pipeline() {
     let stage2_handle = tokio::spawn(async move {
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
-        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::default());
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::development());
         runtime
             .run(
                 stage2_ctrl,
@@ -370,7 +370,7 @@ async fn three_stage_identity_pipeline() {
             .unwrap();
     });
 
-    let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
+    let mut orch = Orchestrator::new(OrchestratorConfig::development(), manifest).unwrap();
     orch.init(
         vec![orch_ctrl0, orch_ctrl1, orch_ctrl2],
         &provider,
@@ -394,4 +394,143 @@ async fn three_stage_identity_pipeline() {
     stage0_handle.await.unwrap();
     stage1_handle.await.unwrap();
     stage2_handle.await.unwrap();
+}
+
+// ---------------------------------------------------------------------------
+// Fail-closed production profile tests
+// ---------------------------------------------------------------------------
+
+/// Default OrchestratorConfig (production) rejects init when no stage has measurements.
+#[tokio::test]
+async fn production_config_rejects_init_without_measurements() {
+    let manifest = make_test_manifest(1);
+    let verifier = MockVerifier::new();
+    let provider = MockProvider::new();
+
+    let (orch_ctrl0, stage0_ctrl) = tokio::io::duplex(65536);
+
+    // Stage still uses development mode so the handshake itself succeeds.
+    let stage0_handle = tokio::spawn(async move {
+        let provider = MockProvider::new();
+        let verifier = MockVerifier::new();
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::development());
+        let _ = runtime
+            .run_control_phase(stage0_ctrl, &provider, &verifier)
+            .await;
+    });
+
+    // Production config (default) with no measurements on any stage.
+    let config = OrchestratorConfig::default();
+    assert!(
+        config.require_measurements,
+        "default config should have require_measurements=true"
+    );
+
+    let mut orch = Orchestrator::new(config, manifest).unwrap();
+
+    // init() should fail because require_measurements is true but no stage has measurements.
+    // However, the transport-level handshake will fail first because the orchestrator's
+    // session_config is in Production mode without expected_measurements.
+    let result = orch.init(vec![orch_ctrl0], &provider, &verifier).await;
+    assert!(
+        result.is_err(),
+        "init should fail in production mode without measurements, got: {result:?}"
+    );
+
+    let _ = stage0_handle.await;
+}
+
+/// Development OrchestratorConfig allows init without measurements.
+#[tokio::test]
+async fn development_config_allows_init_without_measurements() {
+    let manifest = make_test_manifest(1);
+    let verifier = MockVerifier::new();
+    let provider = MockProvider::new();
+
+    let (orch_ctrl0, stage0_ctrl) = tokio::io::duplex(65536);
+    let (orch_data_in, stage0_data_in) = tokio::io::duplex(65536);
+    let (stage0_data_out, orch_data_out) = tokio::io::duplex(65536);
+
+    let stage0_handle = tokio::spawn(async move {
+        let provider = MockProvider::new();
+        let verifier = MockVerifier::new();
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::development());
+        runtime
+            .run(
+                stage0_ctrl,
+                stage0_data_in,
+                stage0_data_out,
+                &provider,
+                &verifier,
+            )
+            .await
+            .expect("stage 0 should succeed in development mode");
+    });
+
+    let config = OrchestratorConfig::development();
+    assert!(
+        !config.require_measurements,
+        "development config should have require_measurements=false"
+    );
+
+    let mut orch = Orchestrator::new(config, manifest).unwrap();
+
+    orch.init(vec![orch_ctrl0], &provider, &verifier)
+        .await
+        .expect("init should succeed in development mode");
+
+    orch.establish_data_channels(orch_data_in, orch_data_out, vec![], &provider, &verifier)
+        .await
+        .expect("data channels should succeed in development mode");
+
+    let input = vec![vec![make_test_tensor("dev_test")]];
+    let result = orch.infer(input, 16).await.expect("inference should work in dev mode");
+    assert_eq!(result.outputs[0][0].name, "dev_test");
+
+    orch.shutdown().await.unwrap();
+    stage0_handle.await.unwrap();
+}
+
+/// Explicitly setting require_measurements=true on development config still rejects.
+#[tokio::test]
+async fn dev_config_with_explicit_require_measurements_rejects() {
+    let manifest = make_test_manifest(1);
+    let verifier = MockVerifier::new();
+    let provider = MockProvider::new();
+
+    let (orch_ctrl0, stage0_ctrl) = tokio::io::duplex(65536);
+
+    let stage0_handle = tokio::spawn(async move {
+        let provider = MockProvider::new();
+        let verifier = MockVerifier::new();
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::development());
+        let _ = runtime
+            .run_control_phase(stage0_ctrl, &provider, &verifier)
+            .await;
+    });
+
+    // Start with development config but override require_measurements.
+    let mut config = OrchestratorConfig::development();
+    config.require_measurements = true;
+
+    let mut orch = Orchestrator::new(config, manifest).unwrap();
+
+    // init() should succeed at handshake (development session config) but
+    // fail at the measurement check because require_measurements is true
+    // and no stage has expected_measurements.
+    let result = orch.init(vec![orch_ctrl0], &provider, &verifier).await;
+    assert!(
+        result.is_err(),
+        "init should fail with require_measurements=true and no measurements, got: {result:?}"
+    );
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("require_measurements"),
+        "error should mention require_measurements, got: {err}"
+    );
+
+    // Drop orchestrator before awaiting the stage handle so the stage's
+    // control channel gets an EOF and can exit cleanly.
+    drop(orch);
+    let _ = stage0_handle.await;
 }

@@ -287,7 +287,7 @@ async fn run_pipeline_with_capture() -> RelayCapture {
     let stage0_handle = tokio::spawn(async move {
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
-        let mut runtime = StageRuntime::new(DoubleExecutor, StageConfig::default());
+        let mut runtime = StageRuntime::new(DoubleExecutor, StageConfig::development());
         runtime
             .run(
                 stage0_ctrl,
@@ -304,7 +304,7 @@ async fn run_pipeline_with_capture() -> RelayCapture {
     let stage1_handle = tokio::spawn(async move {
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
-        let mut runtime = StageRuntime::new(DoubleExecutor, StageConfig::default());
+        let mut runtime = StageRuntime::new(DoubleExecutor, StageConfig::development());
         runtime
             .run(
                 stage1_ctrl,
@@ -318,7 +318,7 @@ async fn run_pipeline_with_capture() -> RelayCapture {
     });
 
     // Run orchestrator.
-    let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
+    let mut orch = Orchestrator::new(OrchestratorConfig::development(), manifest).unwrap();
 
     orch.init(vec![orch_ctrl0, orch_ctrl1], &provider, &verifier)
         .await

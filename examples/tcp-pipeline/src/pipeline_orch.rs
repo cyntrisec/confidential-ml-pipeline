@@ -56,7 +56,7 @@ async fn main() -> anyhow::Result<()> {
     let provider = MockProvider::new();
 
     let mut orch = tcp::init_orchestrator_tcp(
-        OrchestratorConfig::default(),
+        OrchestratorConfig::development(),
         manifest,
         dout_listener,
         &verifier,

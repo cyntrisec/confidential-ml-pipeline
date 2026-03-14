@@ -149,7 +149,7 @@ async fn main() -> anyhow::Result<()> {
         let provider = MockProvider::new();
 
         tcp::init_orchestrator_tcp(
-            OrchestratorConfig::default(),
+            OrchestratorConfig::development(),
             manifest,
             dout_listener,
             &verifier,
@@ -171,7 +171,7 @@ async fn main() -> anyhow::Result<()> {
         let provider = AzureSevSnpProvider::new()?;
 
         tcp::init_orchestrator_tcp(
-            OrchestratorConfig::default(),
+            OrchestratorConfig::development(),
             manifest,
             dout_listener,
             &verifier,
@@ -193,7 +193,7 @@ async fn main() -> anyhow::Result<()> {
         let provider = TdxProvider::new()?;
 
         tcp::init_orchestrator_tcp(
-            OrchestratorConfig::default(),
+            OrchestratorConfig::development(),
             manifest,
             dout_listener,
             &verifier,
@@ -229,7 +229,7 @@ async fn main() -> anyhow::Result<()> {
         );
 
         vsock::init_orchestrator_vsock(
-            OrchestratorConfig::default(),
+            OrchestratorConfig::development(),
             manifest,
             dout_listener,
             &verifier,

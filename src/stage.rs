@@ -9,18 +9,48 @@ use zeroize::Zeroize;
 use crate::error::PipelineError;
 use crate::executor::{ForwardOutput, RequestId, StageExecutor};
 use crate::manifest::{ActivationSpec, StageSpec};
-use crate::protocol::{OrchestratorMsg, StageMsg};
+use crate::protocol::{OrchestratorMsg, StageMsg, DEFAULT_MAX_CONTROL_MESSAGE_BYTES};
 use crate::scheduler::{InferenceSchedule, PipeOp};
 
 /// Sentinel bytes sent on data_out when a stage request fails.
 pub(crate) const ERROR_SENTINEL: &[u8] = b"ERR";
 
 /// Configuration for a stage runtime.
-#[derive(Default)]
 pub struct StageConfig {
     pub session_config: SessionConfig,
     /// Retry policy for TCP connections (used by TCP helpers).
     pub tcp_retry_policy: confidential_ml_transport::RetryPolicy,
+    /// Maximum size (in bytes) for a single control message.
+    /// Messages exceeding this limit are rejected before deserialization.
+    /// Default: 4 MiB.
+    pub max_control_message_bytes: usize,
+}
+
+impl Default for StageConfig {
+    fn default() -> Self {
+        Self {
+            session_config: SessionConfig::default(),
+            tcp_retry_policy: confidential_ml_transport::RetryPolicy::default(),
+            max_control_message_bytes: DEFAULT_MAX_CONTROL_MESSAGE_BYTES,
+        }
+    }
+}
+
+impl StageConfig {
+    /// Create a `StageConfig` suitable for development and testing.
+    ///
+    /// Uses the transport layer's `Development` security profile, allowing
+    /// stages to accept connections without TEE attestation measurements.
+    ///
+    /// # Security warning
+    ///
+    /// Do **not** use this in production. It disables measurement enforcement.
+    pub fn development() -> Self {
+        Self {
+            session_config: SessionConfig::development(),
+            ..Self::default()
+        }
+    }
 }
 
 /// Result of the control-phase handshake.
@@ -45,6 +75,7 @@ pub struct ControlPhaseResult<T> {
 pub struct StageRuntime<E: StageExecutor> {
     executor: E,
     config: StageConfig,
+    max_control_message_bytes: usize,
     stage_idx: usize,
     num_stages: usize,
     stage_spec: Option<StageSpec>,
@@ -53,9 +84,11 @@ pub struct StageRuntime<E: StageExecutor> {
 
 impl<E: StageExecutor> StageRuntime<E> {
     pub fn new(executor: E, config: StageConfig) -> Self {
+        let max_control_message_bytes = config.max_control_message_bytes;
         Self {
             executor,
             config,
+            max_control_message_bytes,
             stage_idx: 0,
             num_stages: 0,
             stage_spec: None,
@@ -276,7 +309,7 @@ impl<E: StageExecutor> StageRuntime<E> {
         &self,
         control: &mut SecureChannel<T>,
     ) -> crate::error::Result<(StageSpec, ActivationSpec, usize)> {
-        let msg = recv_control(control).await?;
+        let msg = recv_control(control, self.max_control_message_bytes).await?;
         match msg {
             OrchestratorMsg::Init {
                 stage_spec_json,
@@ -302,7 +335,7 @@ impl<E: StageExecutor> StageRuntime<E> {
         control: &mut SecureChannel<T>,
     ) -> crate::error::Result<(bool, bool)> {
         loop {
-            let msg = recv_control(control).await?;
+            let msg = recv_control(control, self.max_control_message_bytes).await?;
             match msg {
                 OrchestratorMsg::EstablishDataChannels {
                     has_upstream,
@@ -336,7 +369,7 @@ impl<E: StageExecutor> StageRuntime<E> {
         DO: AsyncRead + AsyncWrite + Unpin + Send,
     {
         loop {
-            let msg = recv_control(control).await?;
+            let msg = recv_control(control, self.max_control_message_bytes).await?;
             match msg {
                 OrchestratorMsg::StartRequest {
                     request_id,
@@ -389,7 +422,7 @@ impl<E: StageExecutor> StageRuntime<E> {
                                 res = &mut process_fut => {
                                     break res;
                                 }
-                                ctrl_msg = recv_control(control) => {
+                                ctrl_msg = recv_control(control, self.max_control_message_bytes) => {
                                     match ctrl_msg? {
                                         OrchestratorMsg::AbortRequest { request_id: rid, reason } => {
                                             warn!(
@@ -564,14 +597,14 @@ impl<E: StageExecutor> StageRuntime<E> {
     }
 }
 
-/// Receive a control message from a SecureChannel.
+/// Receive a control message from a SecureChannel with size and version checks.
 async fn recv_control<T: AsyncRead + AsyncWrite + Unpin + Send>(
     channel: &mut SecureChannel<T>,
+    max_bytes: usize,
 ) -> crate::error::Result<OrchestratorMsg> {
     let msg = channel.recv().await.map_err(PipelineError::Transport)?;
     match msg {
-        Message::Data(data) => OrchestratorMsg::from_bytes(&data)
-            .map_err(|e| PipelineError::Protocol(format!("invalid control message: {e}"))),
+        Message::Data(data) => OrchestratorMsg::from_bytes_checked(&data, max_bytes),
         Message::Shutdown => Err(PipelineError::Shutdown),
         other => Err(PipelineError::Protocol(format!(
             "expected Data on control channel, got {other:?}"

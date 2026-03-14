@@ -27,7 +27,7 @@ async fn secure_channel_through_relay() {
             responder_transport,
             &provider,
             &verifier,
-            SessionConfig::default(),
+            SessionConfig::development(),
         )
         .await
         .expect("responder handshake failed");
@@ -60,7 +60,7 @@ async fn secure_channel_through_relay() {
             initiator_transport,
             &provider,
             &verifier,
-            SessionConfig::default(),
+            SessionConfig::development(),
         )
         .await
         .expect("initiator handshake failed");

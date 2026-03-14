@@ -85,7 +85,7 @@ async fn setup_slow_pipeline(
     tokio::task::JoinHandle<()>,
     tokio::task::JoinHandle<()>,
 ) {
-    setup_slow_pipeline_with_config(delay, OrchestratorConfig::default()).await
+    setup_slow_pipeline_with_config(delay, OrchestratorConfig::development()).await
 }
 
 /// Set up a 2-stage pipeline with custom config and executor delay.
@@ -111,7 +111,7 @@ async fn setup_slow_pipeline_with_config(
     let s0 = tokio::spawn(async move {
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
-        let mut runtime = StageRuntime::new(SlowExecutor(delay0), StageConfig::default());
+        let mut runtime = StageRuntime::new(SlowExecutor(delay0), StageConfig::development());
         let _ = runtime
             .run(
                 stage0_ctrl,
@@ -127,7 +127,7 @@ async fn setup_slow_pipeline_with_config(
     let s1 = tokio::spawn(async move {
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
-        let mut runtime = StageRuntime::new(SlowExecutor(delay1), StageConfig::default());
+        let mut runtime = StageRuntime::new(SlowExecutor(delay1), StageConfig::development());
         let _ = runtime
             .run(
                 stage1_ctrl,
@@ -291,7 +291,7 @@ async fn data_out_drain_timeout_taints_pipeline() {
         data_quiet_period: Duration::from_secs(5),
         // Short outer bound: fires while drain is blocked in quiet-period wait.
         data_drain_timeout: Duration::from_millis(10),
-        ..OrchestratorConfig::default()
+        ..OrchestratorConfig::development()
     };
 
     // SlowExecutor(300ms): stages complete in ~300ms per micro-batch (within

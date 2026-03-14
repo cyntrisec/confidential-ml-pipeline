@@ -139,7 +139,7 @@ async fn main() {
         let verifier = MockVerifier::new();
         let mut runtime = StageRuntime::new(
             DoubleExecutor { stage_idx: 0 },
-            StageConfig::default(),
+            StageConfig::development(),
         );
         runtime
             .run(ctrl0, stage0_data_in, data_out0, &provider, &verifier)
@@ -157,7 +157,7 @@ async fn main() {
             let verifier = MockVerifier::new();
             let mut runtime = StageRuntime::new(
                 DoubleExecutor { stage_idx: i },
-                StageConfig::default(),
+                StageConfig::development(),
             );
             runtime
                 .run(ctrl, data_in, data_out, &provider, &verifier)
@@ -177,7 +177,7 @@ async fn main() {
             DoubleExecutor {
                 stage_idx: last_idx,
             },
-            StageConfig::default(),
+            StageConfig::development(),
         );
         runtime
             .run(
@@ -194,7 +194,7 @@ async fn main() {
     // Run orchestrator.
     let verifier = MockVerifier::new();
     let provider = MockProvider::new();
-    let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
+    let mut orch = Orchestrator::new(OrchestratorConfig::development(), manifest).unwrap();
 
     println!("[orch] Initializing pipeline...");
     orch.init(orch_ctrls, &provider, &verifier).await.unwrap();

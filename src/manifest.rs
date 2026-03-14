@@ -120,7 +120,11 @@ impl ShardManifest {
         }
 
         // Check total coverage.
-        let last_end = self.stages.last().unwrap().layer_end;
+        // Safety: `stages` is non-empty (checked above).
+        let last_end = match self.stages.last() {
+            Some(s) => s.layer_end,
+            None => return Err(ManifestError::EmptyStages),
+        };
         if last_end != self.total_layers {
             return Err(ManifestError::LayerCountMismatch {
                 covered: last_end,

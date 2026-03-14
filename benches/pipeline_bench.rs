@@ -97,7 +97,7 @@ async fn setup_two_stage_pipeline() -> (
     let s0 = tokio::spawn(async move {
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
-        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::default());
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::development());
         runtime
             .run(
                 stage0_ctrl,
@@ -113,7 +113,7 @@ async fn setup_two_stage_pipeline() -> (
     let s1 = tokio::spawn(async move {
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
-        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::default());
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::development());
         runtime
             .run(
                 stage1_ctrl,
@@ -126,7 +126,7 @@ async fn setup_two_stage_pipeline() -> (
             .unwrap();
     });
 
-    let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
+    let mut orch = Orchestrator::new(OrchestratorConfig::development(), manifest).unwrap();
     orch.init(vec![orch_ctrl0, orch_ctrl1], &provider, &verifier)
         .await
         .unwrap();
@@ -157,7 +157,7 @@ async fn setup_three_stage_pipeline() -> (
     let s0 = tokio::spawn(async move {
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
-        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::default());
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::development());
         runtime
             .run(
                 stage0_ctrl,
@@ -173,7 +173,7 @@ async fn setup_three_stage_pipeline() -> (
     let s1 = tokio::spawn(async move {
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
-        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::default());
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::development());
         runtime
             .run(
                 stage1_ctrl,
@@ -189,7 +189,7 @@ async fn setup_three_stage_pipeline() -> (
     let s2 = tokio::spawn(async move {
         let provider = MockProvider::new();
         let verifier = MockVerifier::new();
-        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::default());
+        let mut runtime = StageRuntime::new(IdentityExecutor, StageConfig::development());
         runtime
             .run(
                 stage2_ctrl,
@@ -202,7 +202,7 @@ async fn setup_three_stage_pipeline() -> (
             .unwrap();
     });
 
-    let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest).unwrap();
+    let mut orch = Orchestrator::new(OrchestratorConfig::development(), manifest).unwrap();
     orch.init(
         vec![orch_ctrl0, orch_ctrl1, orch_ctrl2],
         &provider,

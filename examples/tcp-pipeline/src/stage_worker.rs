@@ -110,7 +110,7 @@ async fn main() -> anyhow::Result<()> {
 
     tcp::run_stage_with_listeners(
         DoubleExecutor { stage_idx: args.stage_idx },
-        StageConfig::default(),
+        StageConfig::development(),
         ctrl_lis,
         din_lis,
         dout_target,

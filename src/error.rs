@@ -82,6 +82,10 @@ pub enum PipelineError {
     Protocol(String),
     #[error("serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
+    #[error("protocol version mismatch: expected {expected}, got {actual}")]
+    VersionMismatch { expected: u32, actual: u32 },
+    #[error("control message too large: {size} bytes exceeds limit of {limit} bytes")]
+    MessageTooLarge { size: usize, limit: usize },
 }
 
 /// Convenience alias.
