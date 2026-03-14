@@ -297,6 +297,7 @@ dependencies = [
  "tokio-util",
  "tokio-vsock",
  "tracing",
+ "zeroize",
 ]
 
 [[package]]
@@ -313,6 +314,7 @@ dependencies = [
  "hex",
  "hkdf",
  "openssl",
+ "openssl-sys",
  "rand",
  "serde_bytes",
  "serde_json",

@@ -4,6 +4,7 @@ use confidential_ml_transport::{
 };
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{debug, error, info, warn};
+use zeroize::Zeroize;
 
 use crate::error::PipelineError;
 use crate::executor::{ForwardOutput, RequestId, StageExecutor};
@@ -531,13 +532,27 @@ impl<E: StageExecutor> StageRuntime<E> {
                     PipeOp::Forward { micro_batch } => {
                         let inputs = recv_tensors(data_in).await?;
 
-                        let output: ForwardOutput = self
+                        let mut output: ForwardOutput = self
                             .executor
                             .forward(request_id, *micro_batch, inputs)
                             .await
                             .map_err(PipelineError::Stage)?;
 
                         send_tensors(data_out, &output.tensors).await?;
+
+                        // SEC-705: Explicitly clear activation tensor metadata after
+                        // forwarding. OwnedTensor.data is bytes::Bytes (Arc-backed),
+                        // so we cannot reliably zeroize the underlying allocation —
+                        // other Bytes handles may share the same buffer. Dropping the
+                        // Bytes value releases our reference count; the allocator
+                        // will reclaim the memory once all references are gone.
+                        for tensor in &mut output.tensors {
+                            tensor.name.zeroize();
+                            tensor.shape.zeroize();
+                            // tensor.data: Bytes is Arc-backed — cannot zeroize
+                            // the shared allocation. Drop releases our claim.
+                        }
+                        drop(output);
                     }
                     PipeOp::SendActivation { .. } => {}
                     PipeOp::Idle => {}

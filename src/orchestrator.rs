@@ -6,6 +6,7 @@ use confidential_ml_transport::{
 };
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{debug, info, warn};
+use zeroize::Zeroize;
 
 use crate::error::PipelineError;
 use crate::manifest::ShardManifest;
@@ -503,7 +504,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
     async fn infer_inner(
         &mut self,
         request_id: u64,
-        input_tensors: Vec<Vec<OwnedTensor>>,
+        mut input_tensors: Vec<Vec<OwnedTensor>>,
         seq_len: u32,
     ) -> crate::error::Result<InferenceResult> {
         let num_micro_batches = u32::try_from(input_tensors.len()).map_err(|_| {
@@ -567,6 +568,17 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
                 .await
                 .map_err(PipelineError::Transport)?;
         }
+
+        // SEC-705: Explicitly clear input tensor metadata after sending.
+        // OwnedTensor.data is bytes::Bytes (Arc-backed) — cannot reliably zeroize
+        // the shared allocation. Dropping releases our reference count.
+        for mb_tensors in &mut input_tensors {
+            for tensor in mb_tensors.iter_mut() {
+                tensor.name.zeroize();
+                tensor.shape.zeroize();
+            }
+        }
+        drop(input_tensors);
 
         // Receive output tensors from last stage.
         // If a stage failed, it sends an ERR sentinel on its data_out, which
