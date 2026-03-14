@@ -33,7 +33,9 @@ pub use manifest::{
     ActivationDType, ActivationSpec, PortSpec, ShardManifest, StageEndpoint, StageSpec,
 };
 pub use orchestrator::{InferenceResult, Orchestrator, OrchestratorConfig};
-pub use protocol::{OrchestratorMsg, StageMsg, PROTOCOL_VERSION, DEFAULT_MAX_CONTROL_MESSAGE_BYTES};
+pub use protocol::{
+    OrchestratorMsg, StageMsg, DEFAULT_MAX_CONTROL_MESSAGE_BYTES, PROTOCOL_VERSION,
+};
 pub use relay::{start_relay_link, start_relay_mesh, RelayHandle};
 pub use scheduler::{InferenceSchedule, PipeOp, StageSchedule};
 pub use stage::{ControlPhaseResult, StageConfig, StageRuntime};

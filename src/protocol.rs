@@ -242,10 +242,7 @@ mod tests {
         let data = serde_json::to_vec(&envelope).unwrap();
         let result = OrchestratorMsg::from_bytes_checked(&data, 4 * 1024 * 1024);
         match result {
-            Err(crate::error::PipelineError::VersionMismatch {
-                expected,
-                actual,
-            }) => {
+            Err(crate::error::PipelineError::VersionMismatch { expected, actual }) => {
                 assert_eq!(expected, PROTOCOL_VERSION);
                 assert_eq!(actual, 999);
             }

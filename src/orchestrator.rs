@@ -633,7 +633,9 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
                 // Tolerant: skip stale Pongs and wrong-request-id messages.
                 let max_bytes = self.config.max_control_message_bytes;
                 for stage in &mut self.stages {
-                    let msg = recv_stage_msg_tolerant(&mut stage.control, Some(request_id), max_bytes).await?;
+                    let msg =
+                        recv_stage_msg_tolerant(&mut stage.control, Some(request_id), max_bytes)
+                            .await?;
                     match msg {
                         StageMsg::RequestDone { request_id: rid } if rid == request_id => {
                             debug!(stage = stage.stage_idx, "orchestrator: stage done");
@@ -892,8 +894,11 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Orchestrator<T> {
         let shutdown_timeout = self.config.shutdown_timeout;
         let max_bytes = self.config.max_control_message_bytes;
         for stage in &mut self.stages {
-            let result =
-                tokio::time::timeout(shutdown_timeout, recv_stage_msg(&mut stage.control, max_bytes)).await;
+            let result = tokio::time::timeout(
+                shutdown_timeout,
+                recv_stage_msg(&mut stage.control, max_bytes),
+            )
+            .await;
             match result {
                 Ok(Ok(StageMsg::ShuttingDown { stage_idx })) if stage_idx == stage.stage_idx => {
                     info!(stage = stage_idx, "stage shut down");

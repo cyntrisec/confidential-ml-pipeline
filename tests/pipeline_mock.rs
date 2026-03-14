@@ -484,7 +484,10 @@ async fn development_config_allows_init_without_measurements() {
         .expect("data channels should succeed in development mode");
 
     let input = vec![vec![make_test_tensor("dev_test")]];
-    let result = orch.infer(input, 16).await.expect("inference should work in dev mode");
+    let result = orch
+        .infer(input, 16)
+        .await
+        .expect("inference should work in dev mode");
     assert_eq!(result.outputs[0][0].name, "dev_test");
 
     orch.shutdown().await.unwrap();

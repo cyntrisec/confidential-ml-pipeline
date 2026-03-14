@@ -1,8 +1,8 @@
 //! SEC-705: Verify that explicit tensor cleanup after forward/send does not panic.
 
 use bytes::Bytes;
-use confidential_ml_transport::OwnedTensor;
 use confidential_ml_pipeline::ForwardOutput;
+use confidential_ml_transport::OwnedTensor;
 use zeroize::Zeroize;
 
 /// Create a dummy OwnedTensor with some non-empty fields.

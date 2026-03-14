@@ -8,8 +8,8 @@ name = "mock-pipeline"
 path = "src/main.rs"
 
 [dependencies]
-confidential-ml-pipeline = { path = "../.." }
-confidential-ml-transport = { path = "../../../confidential-ml-transport" }
+confidential-ml-pipeline = { path = "../..", features = ["mock"] }
+confidential-ml-transport = { path = "../../../confidential-ml-transport", features = ["mock"] }
 async-trait = "0.1"
 bytes = "1.5"
 tokio = { version = "1.38", features = ["full"] }

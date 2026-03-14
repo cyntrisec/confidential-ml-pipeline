@@ -276,10 +276,7 @@ async fn stage_rejects_wrong_version_from_orchestrator() {
         }
     });
     let data = serde_json::to_vec(&wrong_version).unwrap();
-    control
-        .send(Bytes::from(data))
-        .await
-        .expect("send failed");
+    control.send(Bytes::from(data)).await.expect("send failed");
 
     let result = stage_handle.await.unwrap();
     assert!(
@@ -338,10 +335,7 @@ async fn stage_rejects_oversized_control_message() {
         }
     });
     let data = serde_json::to_vec(&envelope).unwrap();
-    control
-        .send(Bytes::from(data))
-        .await
-        .expect("send failed");
+    control.send(Bytes::from(data)).await.expect("send failed");
 
     let result = stage_handle.await.unwrap();
     assert!(
@@ -414,7 +408,9 @@ fn config_rejects_zero_max_control_message_bytes() {
     let result = Orchestrator::<tokio::io::DuplexStream>::new(config, manifest);
     match &result {
         Err(PipelineError::Protocol(msg)) if msg.contains("max_control_message_bytes") => {}
-        Err(e) => panic!("expected config validation error about max_control_message_bytes, got: {e}"),
+        Err(e) => {
+            panic!("expected config validation error about max_control_message_bytes, got: {e}")
+        }
         Ok(_) => panic!("expected config validation error, got Ok"),
     }
 }
