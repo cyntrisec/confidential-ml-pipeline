@@ -142,7 +142,7 @@ Test counts depend on features:
 | Command | Tests | Notes |
 |---------|-------|-------|
 | `cargo test` | ~49 | Default features (tcp only) |
-| `cargo test --features mock` | ~82 | Full suite including mock integration, stress, and timeout tests |
+| `cargo test --features mock` | ~88 | Full suite including mock integration, stress, and timeout tests |
 
 Note: `mock` cannot be combined with production attestation features (`tdx`, `nitro`, etc.)
 due to a compile-time guard. Some integration tests bind TCP ports and may need socket permissions.
