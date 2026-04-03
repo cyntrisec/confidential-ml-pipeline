@@ -27,7 +27,7 @@ jobs:
           - --no-default-features --features "tcp,tdx"
           - --no-default-features --features "tcp,azure-sev-snp"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Clone confidential-ml-transport
         run: git clone --depth 1 https://github.com/cyntrisec/confidential-ml-transport.git ../confidential-ml-transport
       - name: Install system dependencies
@@ -41,7 +41,7 @@ jobs:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Clone confidential-ml-transport
         run: git clone --depth 1 https://github.com/cyntrisec/confidential-ml-transport.git ../confidential-ml-transport
       - name: Install system dependencies
@@ -59,7 +59,7 @@ jobs:
     name: Doc
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Clone confidential-ml-transport
         run: git clone --depth 1 https://github.com/cyntrisec/confidential-ml-transport.git ../confidential-ml-transport
       - name: Install system dependencies
@@ -79,7 +79,7 @@ jobs:
     name: Examples
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Clone confidential-ml-transport
         run: git clone --depth 1 https://github.com/cyntrisec/confidential-ml-transport.git ../confidential-ml-transport
       - name: Install system dependencies
@@ -95,7 +95,7 @@ jobs:
     name: Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
