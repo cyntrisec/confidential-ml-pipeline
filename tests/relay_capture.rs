@@ -194,6 +194,7 @@ fn make_manifest() -> ShardManifest {
             layer_start: i * 6,
             layer_end: (i + 1) * 6,
             weight_hashes: vec![],
+            require_weight_hashes: false,
             expected_measurements: BTreeMap::new(),
             endpoint: StageEndpoint {
                 control: PortSpec::Tcp {

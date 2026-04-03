@@ -198,12 +198,13 @@ checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 
 [[package]]
 name = "confidential-ml-pipeline"
-version = "0.3.1"
+version = "0.5.0"
 dependencies = [
  "async-trait",
  "bytes",
  "confidential-ml-transport",
  "hex",
+ "rand",
  "serde",
  "serde_json",
  "thiserror",
@@ -214,7 +215,7 @@ dependencies = [
 
 [[package]]
 name = "confidential-ml-transport"
-version = "0.4.0"
+version = "0.6.0"
 dependencies = [
  "async-trait",
  "bytes",

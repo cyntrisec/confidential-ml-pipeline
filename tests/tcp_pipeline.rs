@@ -55,6 +55,7 @@ fn make_manifest_with_addrs(
             layer_start: i * 4,
             layer_end: (i + 1) * 4,
             weight_hashes: vec![],
+            require_weight_hashes: false,
             expected_measurements: BTreeMap::new(),
             endpoint: StageEndpoint {
                 control: PortSpec::Tcp {

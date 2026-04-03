@@ -41,6 +41,7 @@ fn make_test_manifest(num_stages: usize) -> ShardManifest {
             stage_idx: i,
             layer_start: i * 4,
             layer_end: (i + 1) * 4,
+            require_weight_hashes: false,
             weight_hashes: vec![],
             expected_measurements: BTreeMap::new(),
             endpoint: StageEndpoint {

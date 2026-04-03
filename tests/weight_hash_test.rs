@@ -47,6 +47,7 @@ fn make_manifest_with_hashes(hashes: Vec<String>) -> ShardManifest {
             layer_start: 0,
             layer_end: 4,
             weight_hashes: hashes,
+            require_weight_hashes: false,
             expected_measurements: BTreeMap::new(),
             endpoint: StageEndpoint {
                 control: PortSpec::Tcp {
