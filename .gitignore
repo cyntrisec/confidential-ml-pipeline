@@ -1,4 +1,9 @@
 /target
 /.target_codex
+/.target_codex*
 /examples/*/target
 /examples/gpt2-pipeline/model/
+.env
+.env.*
+*.pem
+*.key

@@ -23,6 +23,10 @@ pub struct StageSpec {
     pub layer_start: usize,
     /// Last layer (exclusive).
     pub layer_end: usize,
+    /// If true, the manifest must declare weight hashes and the stage must
+    /// verify them during initialization.
+    #[serde(default)]
+    pub require_weight_hashes: bool,
     /// SHA-256 hashes (hex-encoded) of model weight files for this stage.
     pub weight_hashes: Vec<String>,
     /// Expected attestation measurements: register index -> hex-encoded hash.
@@ -89,6 +93,9 @@ impl ShardManifest {
                     stage_idx: i,
                     actual: stage.stage_idx,
                 });
+            }
+            if stage.require_weight_hashes && stage.weight_hashes.is_empty() {
+                return Err(ManifestError::MissingRequiredWeightHashes { stage_idx: i });
             }
             if stage.layer_start >= stage.layer_end {
                 return Err(ManifestError::InvalidLayerRange {
@@ -188,6 +195,7 @@ mod tests {
                 stage_idx: i,
                 layer_start: i * layers_per_stage,
                 layer_end: (i + 1) * layers_per_stage,
+                require_weight_hashes: false,
                 weight_hashes: vec![],
                 expected_measurements: BTreeMap::new(),
                 endpoint: make_endpoint((9000 + i * 10) as u32),
@@ -301,6 +309,7 @@ mod tests {
             stage_idx: 0,
             layer_start: 0,
             layer_end: 4,
+            require_weight_hashes: false,
             weight_hashes: vec![],
             expected_measurements: BTreeMap::from([(0, "abcd1234".into()), (1, "deadbeef".into())]),
             endpoint: make_endpoint(9000),
@@ -326,5 +335,15 @@ mod tests {
             }
             _ => panic!("expected VSock"),
         }
+    }
+
+    #[test]
+    fn required_weight_hashes_must_be_declared() {
+        let mut m = make_manifest(1, 4);
+        m.stages[0].require_weight_hashes = true;
+        assert!(matches!(
+            m.validate(),
+            Err(ManifestError::MissingRequiredWeightHashes { stage_idx: 0 })
+        ));
     }
 }

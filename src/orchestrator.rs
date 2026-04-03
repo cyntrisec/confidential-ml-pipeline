@@ -1067,26 +1067,23 @@ async fn recv_output_tensors<T: AsyncRead + AsyncWrite + Unpin + Send>(
 }
 
 /// Generate a unique request ID using an atomic counter seeded with the current
-/// time. This avoids collisions that a pure nanosecond timestamp could produce
-/// when two calls happen within the same clock tick.
+/// random value.
+///
+/// This avoids both the first-call initialization race and the predictability
+/// of timestamp-derived IDs while still providing a cheap monotonic counter
+/// within the current process.
 fn rand_request_id() -> u64 {
+    use rand::RngCore;
     use std::sync::atomic::{AtomicU64, Ordering};
-    use std::time::SystemTime;
+    use std::sync::OnceLock;
 
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    static COUNTER: OnceLock<AtomicU64> = OnceLock::new();
 
-    // Seed counter with timestamp on first call (lazy initialization).
-    // Subsequent calls just increment, guaranteeing uniqueness within this process.
-    let prev = COUNTER.fetch_add(1, Ordering::Relaxed);
-    if prev == 0 {
-        let seed = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos() as u64;
-        // Set the counter to the timestamp seed; next call will use seed+1, etc.
-        COUNTER.store(seed.wrapping_add(1), Ordering::Relaxed);
-        seed
-    } else {
-        prev
-    }
+    let counter = COUNTER.get_or_init(|| {
+        let mut seed = [0u8; 8];
+        rand::rngs::OsRng.fill_bytes(&mut seed);
+        AtomicU64::new(u64::from_be_bytes(seed))
+    });
+
+    counter.fetch_add(1, Ordering::Relaxed)
 }

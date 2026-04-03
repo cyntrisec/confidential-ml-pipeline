@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-04-03
+
+### Security
+
+- **Manifest enforcement tightened** — stages can now declare `require_weight_hashes`, and manifest validation/runtime initialization reject stages that require weight hashes but omit them.
+- **Control message decoding hardened** — legacy `from_bytes()` paths now enforce size limits and reject wrong-version envelopes instead of silently bypassing version checks.
+- **Request IDs no longer timestamp-seeded** — orchestrator request IDs now come from an `OsRng`-seeded atomic counter, avoiding predictable startup values and per-process collisions.
+
+### Changed
+
+- Bumped `confidential-ml-transport` dependency from `0.5` to `0.6` — picks up protocol v4 transcript framing and additional transport hardening.
+- `StageSpec` now exposes `require_weight_hashes: bool`; downstream struct literals must set it explicitly or use constructor helpers.
+- Local development `.gitignore` now covers `.env`, key material, and `.target_codex*` build directories.
+
 ## [0.4.0] - 2026-03-15
 
 ### Security
@@ -100,6 +114,7 @@ Initial release.
 - Pluggable `StageExecutor` trait for user-defined forward passes.
 - Mock, TCP, VSock, and Nitro attestation feature flags (forwarded to `confidential-ml-transport`).
 
+[0.5.0]: https://github.com/cyntrisec/confidential-ml-pipeline/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/cyntrisec/confidential-ml-pipeline/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/cyntrisec/confidential-ml-pipeline/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/cyntrisec/confidential-ml-pipeline/compare/v0.2.2...v0.3.0

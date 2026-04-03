@@ -103,11 +103,29 @@ impl OrchestratorMsg {
 
     /// Deserialize from bytes (legacy unversioned path, for backward compat in tests).
     pub fn from_bytes(data: &[u8]) -> std::result::Result<Self, serde_json::Error> {
-        // Try versioned envelope first, fall back to bare message.
-        if let Ok(envelope) = serde_json::from_slice::<Envelope<OrchestratorMsg>>(data) {
-            return Ok(envelope.msg);
+        if data.len() > DEFAULT_MAX_CONTROL_MESSAGE_BYTES {
+            return Err(<serde_json::Error as serde::de::Error>::custom(format!(
+                "message too large: {} bytes exceeds limit of {}",
+                data.len(),
+                DEFAULT_MAX_CONTROL_MESSAGE_BYTES
+            )));
         }
-        serde_json::from_slice(data)
+
+        let value: serde_json::Value = serde_json::from_slice(data)?;
+        let looks_versioned = value.get("version").is_some() || value.get("msg").is_some();
+
+        if looks_versioned {
+            let envelope: Envelope<OrchestratorMsg> = serde_json::from_value(value)?;
+            if envelope.version != PROTOCOL_VERSION {
+                return Err(<serde_json::Error as serde::de::Error>::custom(format!(
+                    "protocol version mismatch: expected {}, got {}",
+                    PROTOCOL_VERSION, envelope.version
+                )));
+            }
+            Ok(envelope.msg)
+        } else {
+            serde_json::from_value(value)
+        }
     }
 }
 
@@ -150,11 +168,29 @@ impl StageMsg {
 
     /// Deserialize from bytes (legacy unversioned path, for backward compat in tests).
     pub fn from_bytes(data: &[u8]) -> std::result::Result<Self, serde_json::Error> {
-        // Try versioned envelope first, fall back to bare message.
-        if let Ok(envelope) = serde_json::from_slice::<Envelope<StageMsg>>(data) {
-            return Ok(envelope.msg);
+        if data.len() > DEFAULT_MAX_CONTROL_MESSAGE_BYTES {
+            return Err(<serde_json::Error as serde::de::Error>::custom(format!(
+                "message too large: {} bytes exceeds limit of {}",
+                data.len(),
+                DEFAULT_MAX_CONTROL_MESSAGE_BYTES
+            )));
         }
-        serde_json::from_slice(data)
+
+        let value: serde_json::Value = serde_json::from_slice(data)?;
+        let looks_versioned = value.get("version").is_some() || value.get("msg").is_some();
+
+        if looks_versioned {
+            let envelope: Envelope<StageMsg> = serde_json::from_value(value)?;
+            if envelope.version != PROTOCOL_VERSION {
+                return Err(<serde_json::Error as serde::de::Error>::custom(format!(
+                    "protocol version mismatch: expected {}, got {}",
+                    PROTOCOL_VERSION, envelope.version
+                )));
+            }
+            Ok(envelope.msg)
+        } else {
+            serde_json::from_value(value)
+        }
     }
 }
 
@@ -358,5 +394,23 @@ mod tests {
         let bare = br#"{"type":"Shutdown"}"#;
         let decoded = OrchestratorMsg::from_bytes(bare).unwrap();
         assert!(matches!(decoded, OrchestratorMsg::Shutdown));
+    }
+
+    #[test]
+    fn from_bytes_legacy_rejects_wrong_versioned_envelope() {
+        let envelope = Envelope {
+            version: PROTOCOL_VERSION + 1,
+            msg: OrchestratorMsg::Shutdown,
+        };
+        let data = serde_json::to_vec(&envelope).unwrap();
+        let err = OrchestratorMsg::from_bytes(&data).unwrap_err();
+        assert!(err.to_string().contains("protocol version mismatch"));
+    }
+
+    #[test]
+    fn from_bytes_legacy_rejects_oversized_envelope() {
+        let oversized = vec![b'a'; DEFAULT_MAX_CONTROL_MESSAGE_BYTES + 1];
+        let err = StageMsg::from_bytes(&oversized).unwrap_err();
+        assert!(err.to_string().contains("message too large"));
     }
 }

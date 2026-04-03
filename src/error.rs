@@ -21,6 +21,8 @@ pub enum ManifestError {
     LayerStartNotZero { start: usize },
     #[error("stage {stage_idx} has wrong stage_idx field: {actual}")]
     WrongStageIndex { stage_idx: usize, actual: usize },
+    #[error("stage {stage_idx} requires weight hashes but none were declared")]
+    MissingRequiredWeightHashes { stage_idx: usize },
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
 }

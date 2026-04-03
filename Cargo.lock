@@ -283,13 +283,14 @@ checksum = "c3e64b0cc0439b12df2fa678eae89a1c56a529fd067a9115f7827f1fffd22b32"
 
 [[package]]
 name = "confidential-ml-pipeline"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "async-trait",
  "bytes",
  "confidential-ml-transport",
  "criterion",
  "hex",
+ "rand",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -302,7 +303,7 @@ dependencies = [
 
 [[package]]
 name = "confidential-ml-transport"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "async-trait",
  "aws-nitro-enclaves-nsm-api",

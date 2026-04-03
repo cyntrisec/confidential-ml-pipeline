@@ -172,6 +172,13 @@ impl<E: StageExecutor> StageRuntime<E> {
             .await
             .map_err(PipelineError::Stage)?;
 
+        if stage_spec.require_weight_hashes && stage_spec.weight_hashes.is_empty() {
+            return Err(PipelineError::StageFailed {
+                stage_idx: stage_spec.stage_idx,
+                reason: "manifest requires weight hashes but none were declared".into(),
+            });
+        }
+
         // Verify weight hashes if declared in the manifest.
         if !stage_spec.weight_hashes.is_empty() {
             let actual = self.executor.weight_hashes();
