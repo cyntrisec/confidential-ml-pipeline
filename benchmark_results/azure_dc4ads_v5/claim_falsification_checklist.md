@@ -7,6 +7,8 @@
 **Model:** GPT-2 (117M params, 1-stage pipeline)
 **Headline:** Validated confidentiality + attestation binding on Azure CVM with empirical adversarial tests (tamper, replay, frame replay, cross-VM capture).
 
+**Historical note:** This is a 2026-02-10 evidence artifact. Protocol byte examples, dependency versions, and test counts reflect that run, not the current `confidential-ml-transport` / `confidential-ml-pipeline` release state.
+
 ## Summary
 
 | # | Test | Result | Notes |

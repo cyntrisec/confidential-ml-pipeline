@@ -15,14 +15,14 @@ Multi-enclave pipeline orchestration for confidential ML inference.
 
 **Key properties:**
 
-- **Pipeline parallelism** -- 1F1B (one forward, one backward) fill-drain scheduling with configurable micro-batching to minimize pipeline bubbles
+- **Pipeline parallelism** -- forward-only fill-drain scheduling with configurable micro-batching to minimize pipeline bubbles
 - **Shard manifest** -- JSON-based model sharding specification with layer ranges, weight hashes, and expected attestation measurements per stage
 - **Two-phase APIs** -- `StageRuntime` and `Orchestrator` expose split control/data phases for TCP deployment where connections arrive at different times
 - **Configurable timeouts** -- per-operation timeouts for health checks (default 10s) and inference requests (default 60s), surfaced as `PipelineError::Timeout`
 - **Retry policy** -- TCP connection retries use the transport crate's `RetryPolicy` with exponential backoff and jitter, configurable on both `OrchestratorConfig` and `StageConfig`
 - **TCP deployment helpers** -- `tcp` module with retry-connect, listener binding, and full stage/orchestrator lifecycle over real TCP
 - **Pluggable transports** -- TCP and VSock backends via feature flags, with `tokio::io::duplex` for in-process testing
-- **Pluggable attestation** -- trait-based attestation, mock for development, Nitro for production
+- **Pluggable attestation** -- trait-based attestation; mock is for local development only, while production backends are forwarded from `confidential-ml-transport` (Nitro, SEV-SNP, Azure SEV-SNP, TDX)
 - **Relay mesh** -- transparent bidirectional byte relay for inter-stage data channels through the host
 - **Error propagation** -- stage failures send error sentinels on data channels to unblock the pipeline, with detailed error reporting on control channels
 
@@ -51,17 +51,18 @@ The **orchestrator** runs on the host and:
 Each **stage** runs inside an enclave and:
 1. Accepts a control channel, receives its `StageSpec` and `ActivationSpec`
 2. Accepts a data-in channel, connects a data-out channel
-3. Executes forward passes per the 1F1B schedule, streaming activation tensors to the next stage
+3. Executes forward-only scheduled passes, streaming activation tensors to the next stage
 
 ## Features
 
 | Feature | Default | Description |
 |---------|---------|-------------|
-| `mock` | Yes | Mock attestation provider/verifier for local development |
+| `mock` | No | Mock attestation provider/verifier for local development |
 | `tcp` | Yes | TCP transport backend + TCP deployment helpers |
 | `vsock` | No | VSock transport backend for Nitro Enclaves |
 | `nitro` | No | AWS Nitro attestation provider/verifier |
 | `sev-snp` | No | AMD SEV-SNP attestation provider/verifier |
+| `azure-sev-snp` | No | Azure CVM SEV-SNP attestation provider/verifier |
 | `tdx` | No | Intel TDX attestation provider/verifier |
 
 ## Quick Start
@@ -79,13 +80,13 @@ let (stage_data_out, orch_data_out) = tokio::io::duplex(65536);
 
 // Spawn stage
 tokio::spawn(async move {
-    let mut runtime = StageRuntime::new(MyExecutor::new(), StageConfig::default());
+    let mut runtime = StageRuntime::new(MyExecutor::new(), StageConfig::development());
     runtime.run(stage_ctrl, stage_data_in, stage_data_out,
                 &MockProvider::new(), &MockVerifier::new()).await.unwrap();
 });
 
 // Run orchestrator
-let mut orch = Orchestrator::new(OrchestratorConfig::default(), manifest)?;
+let mut orch = Orchestrator::new(OrchestratorConfig::development(), manifest)?;
 orch.init(vec![orch_ctrl], &MockProvider::new(), &MockVerifier::new()).await?;
 orch.establish_data_channels(orch_data_in, orch_data_out, vec![],
                               &MockProvider::new(), &MockVerifier::new()).await?;
@@ -116,7 +117,7 @@ See `examples/tcp-pipeline/` for a complete multi-binary example.
 ### Mock pipeline (in-process)
 
 ```bash
-cargo run --example mock-pipeline --manifest-path examples/mock-pipeline/Cargo.toml
+cargo run --manifest-path examples/mock-pipeline/Cargo.toml
 ```
 
 ### TCP pipeline (multi-process)
@@ -141,8 +142,9 @@ Test counts depend on features:
 
 | Command | Tests | Notes |
 |---------|-------|-------|
-| `cargo test` | ~49 | Default features (tcp only) |
-| `cargo test --features mock` | ~88 | Full suite including mock integration, stress, and timeout tests |
+| `cargo test` | 52 | Default features (tcp only) |
+| `cargo test --features mock` | 95 | Full suite including mock integration, stress, and timeout tests |
+| `cargo test --no-default-features --features "tcp,mock"` | 95 | CI-style TCP + mock suite without implicit defaults |
 
 Note: `mock` cannot be combined with production attestation features (`tdx`, `nitro`, etc.)
 due to a compile-time guard. Some integration tests bind TCP ports and may need socket permissions.
@@ -186,6 +188,8 @@ cargo bench --bench pipeline_bench
 
 End-to-end GPT-2 inference across real Nitro Enclaves with encrypted VSock transport (ChaCha20-Poly1305). 5 independent cold-boot runs per configuration. Mean +/- 95% CI (t-distribution, df=4).
 
+Security note: this historical benchmark used real Nitro Enclave execution and encrypted VSock transport, but the pipeline example used `vsock-mock` / mock attestation and empty `expected_measurements`. Treat these numbers as performance evidence, not as NSM/PCR attestation evidence.
+
 | Metric | 1-Stage (12 layers) | 2-Stage (6+6) | 3-Stage (4+4+4) |
 |--------|---------------------|----------------|------------------|
 | TTFT | 92.5 +/- 1.8ms | 97.5 +/- 5.4ms | 107.1 +/- 13.7ms |
@@ -213,6 +217,8 @@ End-to-end GPT-2 inference across separate GCP VMs with encrypted TCP transport 
 ### Real TDX Attestation (GPT-2 124M, c3-standard-4 TDX, N=5)
 
 Same hardware as TDX columns above, but using real TDX quotes (configfs-tsm) instead of mock attestation. Isolates the one-time attestation handshake cost.
+
+Security note: this benchmark measured real quote generation and handshake overhead. It did not exercise a full production DCAP policy with pinned measurements and fresh collateral in the pipeline example.
 
 | Metric | TDX Mock (Phase 2) | TDX Real Attestation (Phase 3) | Delta |
 |--------|-------------------|-------------------------------|-------|

@@ -107,6 +107,8 @@ Run `bash scripts/bench.sh` to reproduce.
 
 ## Nitro Enclave Deployment
 
+Security posture: this example demonstrates real Nitro Enclave execution and encrypted VSock transport. The historical benchmark/reproduce path below builds the orchestrator with `vsock-mock`, uses mock attestation, and generates manifests with empty `expected_measurements`; use it as a performance benchmark, not as production NSM/PCR attestation evidence.
+
 ### Benchmarks (m6i.2xlarge, 2-vCPU enclaves, N=5)
 
 Greedy decoding, KV-cache enabled, encrypted VSock transport (ChaCha20-Poly1305).

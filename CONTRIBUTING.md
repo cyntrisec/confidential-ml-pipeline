@@ -12,9 +12,9 @@ Thank you for your interest in contributing!
 3. Make your changes
 4. Run the test suite:
    ```bash
-   cargo test
-   cargo clippy -- -D warnings
-   cargo fmt --check
+   cargo test --features mock
+   cargo clippy --features mock -- -D warnings
+   cargo fmt --all -- --check
    ```
 5. Commit and push to your fork
 6. Open a pull request
@@ -27,14 +27,17 @@ Thank you for your interest in contributing!
 ## Code Style
 
 - Run `cargo fmt` before committing
-- Run `cargo clippy -- -D warnings` and fix all warnings
+- Run `cargo clippy --features mock -- -D warnings` and fix all warnings
 - Write tests for new functionality
 - Keep `unsafe` usage to zero in this crate
 
 ## Testing
 
 ```bash
-# Unit + integration tests
+# Full mock-enabled suite
+cargo test --features mock
+
+# Default feature set only
 cargo test
 
 # TCP integration tests only

@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Documentation
+
+- Corrected current feature documentation: `mock` is no longer a default feature, and `azure-sev-snp` is listed explicitly.
+- Clarified the scheduler as forward-only fill-drain inference scheduling, not training-style backward scheduling.
+- Marked historical Nitro and TDX benchmark pages with security-posture caveats so performance artifacts are not mistaken for production attestation evidence.
+- Updated current test-count documentation to match the crate state after the `confidential-ml-transport` 0.6.1 lockfile refresh.
+
 ## [0.5.0] - 2026-04-03
 
 ### Security
@@ -104,7 +113,7 @@ Initial release.
 
 ### Features
 
-- Multi-enclave pipeline orchestration with 1F1B fill-drain scheduling.
+- Multi-enclave pipeline orchestration with forward-only fill-drain scheduling.
 - JSON shard manifest with layer ranges, weight hashes, and expected attestation measurements.
 - Two-phase `StageRuntime` and `Orchestrator` APIs for split control/data channel establishment.
 - Configurable timeouts for health checks and inference requests with drain-on-timeout recovery.

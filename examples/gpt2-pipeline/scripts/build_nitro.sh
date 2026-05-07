@@ -42,6 +42,7 @@ for ((i=0; i<NUM_STAGES; i++)); do
 done
 
 echo ""
-echo "Built $NUM_STAGES EIF(s). PCR values above can be used for expected_measurements."
+echo "Built $NUM_STAGES EIF(s). PCR values above are printed by nitro-cli."
+echo "Note: scripts/run_nitro.sh currently uses vsock-mock and does not consume expected_measurements."
 echo ""
 echo "Next: run scripts/run_nitro.sh to launch enclaves and orchestrator."

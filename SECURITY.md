@@ -29,11 +29,11 @@ Instead, please use one of these channels:
 - **Pipeline orchestration** (stage-to-stage relay, measurement enforcement, activation forwarding)
 - **Tensor metadata handling** (zeroization, memory safety)
 - **Protocol security** (envelope framing, size guards, version enforcement)
-- **Key material handling** (session keys, shard manifest secrets)
+- **Key material handling** (session keys, shard manifest integrity metadata)
 
 ## Supported Versions
 
 | Version | Supported |
 |---------|-----------|
-| 0.4.x   | Yes       |
-| < 0.4   | No        |
+| 0.5.x   | Yes       |
+| < 0.5.0 | No        |

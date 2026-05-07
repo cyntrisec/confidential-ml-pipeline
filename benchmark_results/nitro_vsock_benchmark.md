@@ -1,9 +1,11 @@
 # GPT-2 Nitro Enclave Pipeline Benchmark
 
-> Real Nitro multi-stage confidential inference is practical at 2 stages; 3-stage shows higher overhead under host contention.
+> Real Nitro Enclave pipeline execution is practical at 2 stages; 3-stage shows higher overhead under host contention.
 
 **Date:** 2026-02-09
 **Provenance commit:** [`47e1d97`](https://github.com/cyntrisec/confidential-ml-pipeline/commit/47e1d97) (scripts verified on real hardware)
+
+**Security posture:** Historical performance artifact. The run used real Nitro Enclaves and encrypted VSock transport, but mock attestation (`vsock-mock`) and debug-mode enclaves. Do not cite this file as production NSM/PCR attestation evidence.
 
 ## Environment
 
