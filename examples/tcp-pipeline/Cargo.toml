@@ -13,7 +13,7 @@ path = "src/pipeline_orch.rs"
 
 [dependencies]
 confidential-ml-pipeline = { path = "../..", features = ["mock", "tcp"] }
-confidential-ml-transport = { path = "../../../confidential-ml-transport", features = ["mock", "tcp"] }
+confidential-ml-transport = { git = "https://github.com/cyntrisec/confidential-ml-transport", rev = "1cfb4b16e7bc9d1f403c4a67dd9a28559a5b5b9b", features = ["mock", "tcp"] }
 async-trait = "0.1"
 bytes = "1.5"
 clap = { version = "4", features = ["derive"] }

@@ -28,8 +28,6 @@ jobs:
           - --no-default-features --features "tcp,azure-sev-snp"
     steps:
       - uses: actions/checkout@v6
-      - name: Clone confidential-ml-transport
-        run: git clone --depth 1 https://github.com/cyntrisec/confidential-ml-transport.git ../confidential-ml-transport
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libssl-dev libtss2-dev
       - uses: dtolnay/rust-toolchain@stable
@@ -42,8 +40,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Clone confidential-ml-transport
-        run: git clone --depth 1 https://github.com/cyntrisec/confidential-ml-transport.git ../confidential-ml-transport
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libssl-dev libtss2-dev
       - uses: dtolnay/rust-toolchain@stable
@@ -60,8 +56,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Clone confidential-ml-transport
-        run: git clone --depth 1 https://github.com/cyntrisec/confidential-ml-transport.git ../confidential-ml-transport
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libssl-dev libtss2-dev
       - uses: dtolnay/rust-toolchain@stable
@@ -80,8 +74,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Clone confidential-ml-transport
-        run: git clone --depth 1 https://github.com/cyntrisec/confidential-ml-transport.git ../confidential-ml-transport
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libssl-dev libtss2-dev
       - uses: dtolnay/rust-toolchain@stable
