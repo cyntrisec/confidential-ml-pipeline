@@ -34,7 +34,7 @@ azure-sev-snp = ["confidential-ml-transport/azure-sev-snp"]
 
 [dev-dependencies]
 tokio = { version = "1.38", features = ["full", "test-util"] }
-criterion = { version = "0.5", features = ["async_tokio"] }
+criterion = { version = "0.8", features = ["async_tokio"] }
 tokio-util = { version = "0.7", features = ["codec"] }
 async-trait = "0.1"
 
