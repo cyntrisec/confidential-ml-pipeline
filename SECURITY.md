@@ -9,7 +9,7 @@ If you discover a security vulnerability in confidential-ml-pipeline, please rep
 Instead, please use one of these channels:
 
 1. **GitHub Security Advisories** (preferred): [Report a vulnerability](https://github.com/cyntrisec/confidential-ml-pipeline/security/advisories/new)
-2. **Email**: security@cyntrisec.com
+2. **Email**: contact@cyntrisec.com
 
 ### What to Include
 
