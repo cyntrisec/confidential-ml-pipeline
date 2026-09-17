@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
+use std::hint::black_box;
 
 use async_trait::async_trait;
 use bytes::Bytes;
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use confidential_ml_transport::{DType, MockProvider, MockVerifier, OwnedTensor};

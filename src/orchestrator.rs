@@ -1073,16 +1073,18 @@ async fn recv_output_tensors<T: AsyncRead + AsyncWrite + Unpin + Send>(
 /// of timestamp-derived IDs while still providing a cheap monotonic counter
 /// within the current process.
 fn rand_request_id() -> u64 {
-    use rand::RngCore;
+    use rand::rngs::SysRng;
+    use rand::TryRng;
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::sync::OnceLock;
 
     static COUNTER: OnceLock<AtomicU64> = OnceLock::new();
 
     let counter = COUNTER.get_or_init(|| {
-        let mut seed = [0u8; 8];
-        rand::rngs::OsRng.fill_bytes(&mut seed);
-        AtomicU64::new(u64::from_be_bytes(seed))
+        let seed = SysRng
+            .try_next_u64()
+            .expect("operating system entropy source unavailable");
+        AtomicU64::new(seed)
     });
 
     counter.fetch_add(1, Ordering::Relaxed)
