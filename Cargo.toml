@@ -1,6 +1,6 @@
 [package]
 name = "confidential-ml-pipeline"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 description = "Multi-enclave pipeline orchestration for confidential ML inference"
 license = "MIT OR Apache-2.0"
@@ -9,7 +9,7 @@ keywords = ["tee", "confidential", "ml", "pipeline", "encryption"]
 categories = ["cryptography", "network-programming"]
 
 [dependencies]
-confidential-ml-transport = { git = "https://github.com/cyntrisec/confidential-ml-transport", rev = "e2b2fdf790ec6b9c44d5b30a0e3f7087ff35cb54", default-features = false }
+confidential-ml-transport = { version = "0.6.2", default-features = false }
 bytes = "1.5"
 tokio = { version = "1.38", features = ["net", "io-util", "sync", "macros", "rt", "time"] }
 thiserror = "2"

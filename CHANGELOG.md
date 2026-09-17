@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-09-17
+
+### Security
+
+- Raised the minimum `confidential-ml-transport` requirement to `0.6.2`. The previous `^0.6` range permitted resolution to `0.6.0`/`0.6.1`, which predate the rejection of unsupported Nitro COSE critical headers; downstream builds now require the audited release.
+
+### Changed
+
+- Restored the `confidential-ml-transport` dependency to a published crates.io version after a temporary git-revision pin; the lockfile records the registry checksum for the audited release.
+
 ### Documentation
 
 - Corrected current feature documentation: `mock` is no longer a default feature, and `azure-sev-snp` is listed explicitly.
@@ -123,6 +133,7 @@ Initial release.
 - Pluggable `StageExecutor` trait for user-defined forward passes.
 - Mock, TCP, VSock, and Nitro attestation feature flags (forwarded to `confidential-ml-transport`).
 
+[0.5.1]: https://github.com/cyntrisec/confidential-ml-pipeline/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/cyntrisec/confidential-ml-pipeline/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/cyntrisec/confidential-ml-pipeline/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/cyntrisec/confidential-ml-pipeline/compare/v0.3.0...v0.3.1
