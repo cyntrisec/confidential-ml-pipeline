@@ -198,7 +198,7 @@ checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 
 [[package]]
 name = "confidential-ml-pipeline"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "async-trait",
  "bytes",
@@ -215,8 +215,9 @@ dependencies = [
 
 [[package]]
 name = "confidential-ml-transport"
-version = "0.6.1"
-source = "git+https://github.com/cyntrisec/confidential-ml-transport?rev=1cfb4b16e7bc9d1f403c4a67dd9a28559a5b5b9b#1cfb4b16e7bc9d1f403c4a67dd9a28559a5b5b9b"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "376bfce7813564dce83be3a089d1895435b3e59cd1027622982f90137fad1b74"
 dependencies = [
  "async-trait",
  "bytes",

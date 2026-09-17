@@ -434,7 +434,7 @@ checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 
 [[package]]
 name = "confidential-ml-pipeline"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "async-trait",
  "bytes",
@@ -452,8 +452,9 @@ dependencies = [
 
 [[package]]
 name = "confidential-ml-transport"
-version = "0.6.1"
-source = "git+https://github.com/cyntrisec/confidential-ml-transport?rev=1cfb4b16e7bc9d1f403c4a67dd9a28559a5b5b9b#1cfb4b16e7bc9d1f403c4a67dd9a28559a5b5b9b"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "376bfce7813564dce83be3a089d1895435b3e59cd1027622982f90137fad1b74"
 dependencies = [
  "async-trait",
  "aws-nitro-enclaves-nsm-api",
