@@ -50,11 +50,12 @@ impl StageExecutor for DoubleExecutor {
             .map(|t| {
                 let doubled: Vec<u8> = t
                     .data
-                    .as_chunks::<4>()
-                    .0
-                    .iter()
+                    .chunks_exact(4)
                     .flat_map(|c| {
-                        let v = f32::from_le_bytes(*c);
+                        let bytes: [u8; 4] = c
+                            .try_into()
+                            .expect("chunks_exact always yields four-byte slices");
+                        let v = f32::from_le_bytes(bytes);
                         (v * 2.0).to_le_bytes()
                     })
                     .collect();

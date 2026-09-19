@@ -61,7 +61,7 @@ MANIFEST="$EXAMPLE_DIR/manifests/manifest_2stage.json"
 
 if [ ! -f "$STAGE_BIN" ] || [ ! -f "$ORCH_BIN" ]; then
     echo "Building (release)..."
-    cargo build --release --manifest-path "$EXAMPLE_DIR/Cargo.toml" 2>/dev/null
+    cargo build --locked --release --manifest-path "$EXAMPLE_DIR/Cargo.toml" 2>/dev/null
 fi
 
 PIDS=()

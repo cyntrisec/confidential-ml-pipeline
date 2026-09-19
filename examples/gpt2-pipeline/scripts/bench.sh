@@ -18,7 +18,7 @@ if [ ! -f "$MODEL_DIR/model.safetensors" ]; then
 fi
 
 echo "Building (release)..."
-cargo build --release --manifest-path "$EXAMPLE_DIR/Cargo.toml" 2>/dev/null
+cargo build --locked --release --manifest-path "$EXAMPLE_DIR/Cargo.toml" 2>/dev/null
 
 CPU_MODEL=$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2 | xargs || echo "unknown")
 COMMIT=$(git -C "$EXAMPLE_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")

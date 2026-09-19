@@ -25,7 +25,7 @@ if [ ! -f "$MODEL_DIR/model.safetensors" ]; then
 fi
 
 echo "Building (release)..."
-cargo build --release --manifest-path "$EXAMPLE_DIR/Cargo.toml" 2>&1 | tail -1
+cargo build --locked --release --manifest-path "$EXAMPLE_DIR/Cargo.toml" 2>&1 | tail -1
 
 CPU_MODEL=$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2 | xargs || echo "unknown")
 KERNEL=$(uname -r)

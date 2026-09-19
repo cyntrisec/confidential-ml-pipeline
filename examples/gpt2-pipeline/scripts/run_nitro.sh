@@ -125,7 +125,7 @@ sleep 15
 # (X25519 + ChaCha20-Poly1305) is still fully active — only attestation
 # identity is mocked. Matches the enclave-side feature in Dockerfile.
 echo "Building orchestrator (host)..."
-cargo build --release --bin pipeline-orch \
+cargo build --locked --release --bin pipeline-orch \
     --manifest-path "$EXAMPLE_DIR/Cargo.toml" \
     --no-default-features --features vsock-mock
 

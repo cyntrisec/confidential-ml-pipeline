@@ -195,7 +195,7 @@ if $NEED_BUILD; then
     echo "  (This may take 5-10 minutes on first build...)"
     # Long cargo builds can exceed SSH timeouts. Use nohup + poll.
     gssh "cmt-stage0" "nohup bash -c 'source ~/.cargo/env && cd ~/$WORKSPACE/confidential-ml-pipeline && \
-        cargo build --release --manifest-path examples/gpt2-pipeline/Cargo.toml \
+        cargo build --locked --release --manifest-path examples/gpt2-pipeline/Cargo.toml \
         --no-default-features --features $FEATURE > ~/build.log 2>&1 && touch ~/build-done || touch ~/build-failed' &"
 
     # Poll for build completion
