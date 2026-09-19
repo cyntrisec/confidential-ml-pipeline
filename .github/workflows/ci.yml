@@ -36,7 +36,38 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Run tests
-        run: cargo test ${{ matrix.features }}
+        run: cargo test --locked ${{ matrix.features }}
+
+  msrv:
+    name: MSRV (core/default features)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@1.85.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Check core/default-feature MSRV
+        run: cargo check --lib --locked
+
+  audit:
+    name: Audit (${{ matrix.directory }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+    strategy:
+      fail-fast: false
+      matrix:
+        directory:
+          - "."
+          - examples/mock-pipeline
+          - examples/tcp-pipeline
+          - examples/gpt2-pipeline
+    steps:
+      - uses: actions/checkout@v7
+      - uses: rustsec/audit-check@v2.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          working-directory: ${{ matrix.directory }}
 
   clippy:
     name: Clippy
@@ -50,9 +81,9 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - name: Run clippy (mock+tcp)
-        run: cargo clippy --all-targets --no-default-features --features "tcp,mock" -- -D warnings
+        run: cargo clippy --locked --all-targets --no-default-features --features "tcp,mock" -- -D warnings
       - name: Run clippy (production)
-        run: cargo clippy --all-targets --no-default-features --features "tcp,sev-snp,tdx,azure-sev-snp" -- -D warnings
+        run: cargo clippy --locked --all-targets --no-default-features --features "tcp,sev-snp,tdx,azure-sev-snp" -- -D warnings
 
   doc:
     name: Doc
@@ -64,11 +95,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Build docs (mock+tcp)
-        run: cargo doc --no-deps --no-default-features --features "tcp,mock"
+        run: cargo doc --locked --no-deps --no-default-features --features "tcp,mock"
         env:
           RUSTDOCFLAGS: -D warnings
       - name: Build docs (production)
-        run: cargo doc --no-deps --no-default-features --features "tcp,sev-snp,tdx,azure-sev-snp"
+        run: cargo doc --locked --no-deps --no-default-features --features "tcp,sev-snp,tdx,azure-sev-snp"
         env:
           RUSTDOCFLAGS: -D warnings
 
@@ -82,9 +113,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Check mock-pipeline example
-        run: cargo check --manifest-path examples/mock-pipeline/Cargo.toml
+        run: cargo check --locked --manifest-path examples/mock-pipeline/Cargo.toml
       - name: Check tcp-pipeline example
-        run: cargo check --manifest-path examples/tcp-pipeline/Cargo.toml
+        run: cargo check --locked --manifest-path examples/tcp-pipeline/Cargo.toml
+      - name: Check gpt2-pipeline example
+        run: cargo check --locked --manifest-path examples/gpt2-pipeline/Cargo.toml
 
   fmt:
     name: Format

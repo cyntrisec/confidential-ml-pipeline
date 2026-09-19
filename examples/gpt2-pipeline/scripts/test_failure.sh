@@ -19,7 +19,7 @@ fi
 
 if [ ! -f "$STAGE_BIN" ] || [ ! -f "$ORCH_BIN" ]; then
     echo "Building (release)..."
-    cargo build --release --manifest-path "$EXAMPLE_DIR/Cargo.toml"
+    cargo build --locked --release --manifest-path "$EXAMPLE_DIR/Cargo.toml"
 fi
 
 PIDS=()

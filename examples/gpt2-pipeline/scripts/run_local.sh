@@ -17,7 +17,7 @@ if [ ! -f "$MODEL_DIR/model.safetensors" ]; then
 fi
 
 echo "Building (release)..."
-cargo build --release --manifest-path "$EXAMPLE_DIR/Cargo.toml"
+cargo build --locked --release --manifest-path "$EXAMPLE_DIR/Cargo.toml"
 
 STAGE_BIN="$EXAMPLE_DIR/target/release/stage-worker"
 ORCH_BIN="$EXAMPLE_DIR/target/release/pipeline-orch"

@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enabled CodeQL code scanning (Rust and Actions) on the repository; previously nothing scanned this codebase.
 - Declared least-privilege `contents: read` permissions for the CI workflow, resolving five `actions/missing-workflow-permissions` findings.
 - Enabled secret scanning, push protection, and Dependabot security updates.
+- Refreshed all example lockfiles to patched dependency releases and added RustSec audits for the root and every example lockfile.
+- CI and operator build scripts now reject stale lockfiles for the library and all three runnable examples.
 
 ### Changed
 
@@ -19,10 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `criterion` from `0.5` to `0.8` (development dependency, benchmarks only) and switched to `std::hint::black_box`.
 - Refreshed compatible dependencies: `tokio` 1.53.1, `tokio-util` 0.7.19, `serde` 1.0.229, `serde_json` 1.0.151, `async-trait` 0.1.92, `thiserror` 2.0.20, `bytes` 1.12.1, `zeroize` 1.9.0.
 - Moved CI to `actions/checkout@v7`.
+- Declared Rust 1.85 as the core/default-feature MSRV and added an explicit MSRV CI job. Development benchmarks continue to use the newer toolchain required by Criterion 0.8.
+- Excluded benchmark evidence, operational scripts, and nested example lockfiles from future crates.io packages while retaining them in the repository.
 
 ### Fixed
 
 - The in-repo example crates pinned an older `confidential-ml-transport` git revision than the library and failed to compile with unsatisfied attestation trait bounds. All examples now use the published `0.6.2` release.
+- Replaced a Rust 1.88-only helper in the relay-capture test so all-target Clippy remains compatible with the declared core Rust 1.85 MSRV.
 
 ## [0.5.1] - 2026-09-17
 
