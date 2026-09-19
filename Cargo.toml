@@ -1,6 +1,6 @@
 [package]
 name = "confidential-ml-pipeline"
-version = "0.5.1"
+version = "0.5.2"
 edition = "2021"
 # Core/default-feature MSRV. Development benchmarks use Criterion 0.8 and
 # therefore require a newer toolchain.

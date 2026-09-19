@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-09-19
+
 ### Security
 
 - Enabled CodeQL code scanning (Rust and Actions) on the repository; previously nothing scanned this codebase.
@@ -155,6 +157,7 @@ Initial release.
 - Pluggable `StageExecutor` trait for user-defined forward passes.
 - Mock, TCP, VSock, and Nitro attestation feature flags (forwarded to `confidential-ml-transport`).
 
+[0.5.2]: https://github.com/cyntrisec/confidential-ml-pipeline/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/cyntrisec/confidential-ml-pipeline/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/cyntrisec/confidential-ml-pipeline/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/cyntrisec/confidential-ml-pipeline/compare/v0.3.1...v0.4.0
