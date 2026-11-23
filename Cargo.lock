@@ -337,7 +337,7 @@ dependencies = [
  "confidential-ml-transport",
  "criterion",
  "hex",
- "rand 0.10.2",
+ "rand 0.10.4",
  "serde",
  "serde_json",
  "thiserror 2.0.20",
@@ -1297,9 +1297,9 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.10.2"
+version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7f5fa3a058cd35567ef9bfa5e75732bee0f9e4c55fa90477bef2dfcdbc4be80"
+checksum = "8f6fa277c67e6ea590466f04c3fe82cb509f0864fe470643e5570de9514a9b11"
 dependencies = [
  "chacha20 0.10.2",
  "getrandom 0.4.3",
